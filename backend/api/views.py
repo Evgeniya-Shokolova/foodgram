@@ -22,12 +22,13 @@ from api.pagination import PageLimitPaginator
 from users.models import CustomUser
 
 
-class SignUpView(viewsets.ModelViewSet):
+class UserViewSet(viewsets.ModelViewSet):
     queryset = CustomUser.objects.all()
-    serializer_class = SignUpUserSerializer
-    
-    @action(detail=False, methods=['POST'], permission_classes=(permissions.AllowAny,))
-    def register(self, request):
+    serializer_class = UserSerializer
+    pagination_class = PageLimitPaginator
+    permission_classes = (permissions.AllowAny,)
+
+    def create(self, request, *args, **kwargs):
         """
         Регистрирует нового пользователя.
         Принимает следующие поля в запросе:
@@ -38,36 +39,30 @@ class SignUpView(viewsets.ModelViewSet):
         serializer = SignUpUserSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
-            response_serializer = UserSerializer(user, context={'request': request})
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-        return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-    
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
+            response_serializer = UserSerializer(
+                user, context={'request': request}
+                )
+            return Response(
+                response_serializer.data,
+                status=status.HTTP_201_CREATED
+                )
+        return Response({'errors': serializer.errors},
+                        status=status.HTTP_400_BAD_REQUEST)
 
-        return Response(
-            UserSerializer(user, context={'request': request}).data,
-            status=status.HTTP_201_CREATED
-        )
-
-
-class UserViewSet(viewsets.ModelViewSet):
-    queryset = CustomUser.objects.all()
-    serializer_class = UserSerializer
-    pagination_class = PageLimitPaginator
-    permission_classes = (permissions.AllowAny,)
-
-
-    @action(detail=False, methods=['GET'], permission_classes=(permissions.IsAuthenticated,))
+    @action(detail=False, methods=['GET'],
+            permission_classes=(permissions.IsAuthenticated,))
     def get_profile(self, request):
-        serializer = UserSerializer(request.user, context={'request': request})
+        serializer = UserSerializer(
+            request.user, context={'request': request}
+            )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=['GET'], permission_classes=(permissions.IsAuthenticated,))
+    @action(detail=False, methods=['GET'],
+            permission_classes=(permissions.IsAuthenticated,))
     def user_subscriptions(self, request):
-        subscriptions = self.get_queryset().filter(following__user=request.user).order_by('pk')
+        subscriptions = self.get_queryset().filter(
+            following__user=request.user
+            ).order_by('pk')
         paginated_subscriptions = self.paginate_queryset(subscriptions)
 
         serializer = FollowerSerializer(
@@ -75,12 +70,19 @@ class UserViewSet(viewsets.ModelViewSet):
             many=True,
             context={'request': request}
         )
-        return self.get_paginated_response(serializer.data) if paginated_subscriptions else Response(serializer.data, status=status.HTTP_200_OK)
+        return self.get_paginated_response(
+            serializer.data) if paginated_subscriptions else Response(
+                serializer.data, status=status.HTTP_200_OK
+                )
 
-    @action(detail=False, methods=["PUT", "DELETE"], permission_classes=[permissions.IsAuthenticated], url_path='me/avatar')
+    @action(detail=False, methods=["PUT", "DELETE"],
+            permission_classes=[permissions.IsAuthenticated],
+            url_path='me/avatar')
     def set_avatar(self, request):
         if request.method == "PUT":
-            serializer = AvatarSerializer(instance=request.user, data=request.data, partial=True)
+            serializer = AvatarSerializer(
+                instance=request.user, data=request.data, partial=True
+                )
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)

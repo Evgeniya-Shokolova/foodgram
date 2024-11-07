@@ -1,7 +1,11 @@
 from django.contrib.auth import get_user_model
 from django.db import models
 
-from api.constants import MAX_LENGTH_TAG_NAME, MAX_LENGTH_INGRIDIENT_NAME, MAX_LENGTH_RECIPE_NAME
+from api.constants import (
+    MAX_LENGTH_TAG_NAME,
+    MAX_LENGTH_INGRIDIENT_NAME,
+    MAX_LENGTH_RECIPE_NAME
+    )
 from users.models import CustomUser
 
 

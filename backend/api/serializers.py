@@ -1,15 +1,20 @@
 import base64
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
 from django.shortcuts import get_object_or_404
-from django.contrib.auth.password_validation import validate_password, ValidationError
+from django.contrib.auth.password_validation import (
+    validate_password,
+    ValidationError
+    )
 
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 
+from api.constants import MAX_LENGTH_EMAIL, MAX_LENGTH_USERNAME
 from api.models import Recipe, Tag, Ingredient, RecipeIngredient
 from users.models import CustomUser
-from api.constants import MAX_LENGTH_EMAIL, MAX_LENGTH_USERNAME
+
 
 class Base64ImageField(serializers.ImageField):
     def to_internal_value(self, data):
@@ -43,10 +48,19 @@ class SignUpUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ('email', 'id', 'username', 'first_name', 'last_name', 'password')
+        fields = (
+            'email',
+            'id',
+            'username',
+            'first_name',
+            'last_name',
+            'password'
+            )
 
     def validate(self, attrs):
-        """Проверяет уникальность имени пользователя и адреса электронной почты."""
+        """
+        Проверяет уникальность имени пользователя и адреса электронной почты.
+        """
         username = attrs.get('username')
         email = attrs.get('email')
 
@@ -54,7 +68,9 @@ class SignUpUserSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Недопустимое имя пользователя!')
 
         if CustomUser.objects.filter(username=username).exists():
-            raise serializers.ValidationError('Это имя пользователя уже занято!')
+            raise serializers.ValidationError(
+                'Это имя пользователя уже кому-то принадлежит!'
+                )
 
         if CustomUser.objects.filter(email=email).exists():
             raise serializers.ValidationError('Этот email уже занят!')
@@ -92,7 +108,9 @@ class UserSerializer(serializers.ModelSerializer):
         )
 
     def get_is_subscribed(self, user):
-        """Определяет подписан ли текущий пользователь на данного пользователя."""
+        """
+        Определяет подписан ли текущий пользователь на данного пользователя.
+        """
         current_user = self.context.get('request').user
         return (
             current_user.is_authenticated and 
@@ -107,8 +125,14 @@ class FollowerSerializer(UserSerializer):
     class Meta:
         model = CustomUser
         fields = (
-            'email', 'id', 'username', 'first_name',
-            'last_name', 'is_subscribed', 'recipes', 'recipes_count',
+            'email',
+            'id',
+            'username',
+            'first_name',
+            'last_name',
+            'is_subscribed',
+            'recipes',
+            'recipes_count',
         )
 
     def get_recipes(self, user_instance):
@@ -206,9 +230,16 @@ class DetailedRecipeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recipe
         fields = (
-            'id', 'tags', 'author', 'ingredients',
-            'is_favorited', 'is_in_shopping_cart', 'name',
-            'image', 'text', 'cooking_time',
+            'id',
+            'tags',
+            'author',
+            'ingredients',
+            'is_favorited',
+            'is_in_shopping_cart',
+            'name',
+            'image',
+            'text',
+            'cooking_time',
         )
 
     def get_is_favorited(self, recipe_instance):
@@ -217,12 +248,16 @@ class DetailedRecipeSerializer(serializers.ModelSerializer):
 
     def get_is_in_shopping_cart(self, recipe_instance):
         """Проверка, находится ли рецепт в корзине у пользователя."""
-        return self._is_recipe_in_user_list(recipe_instance, 'shopping_list_recipes')
+        return self._is_recipe_in_user_list(
+            recipe_instance, 'shopping_list_recipes'
+            )
 
     def _is_recipe_in_user_list(self, recipe_instance, list_attr):
         """Находится ли рецепт в списке пользователя."""
         user = self.context['request'].user
-        return user.is_authenticated and getattr(recipe_instance, list_attr).filter(user=user).exists()
+        return user.is_authenticated and getattr(
+            recipe_instance, list_attr
+            ).filter(user=user).exists()
 
 
 class RecipeEntrySerializer(DetailedRecipeSerializer):
@@ -253,7 +288,9 @@ class RecipeEntrySerializer(DetailedRecipeSerializer):
         """Получение объектов ингредиентов."""
         ingredient_objs = []
         for ingredient_data in ingredient_data_list:
-            ingredient_instance = get_object_or_404(Ingredient, pk=ingredient_data['id'])
+            ingredient_instance = get_object_or_404(
+                Ingredient, pk=ingredient_data['id']
+                )
             ingred_obj, created = RecipeIngredient.objects.get_or_create(
                 ingredient=ingredient_instance,
                 amount=ingredient_data['amount']
@@ -278,7 +315,9 @@ class RecipeEntrySerializer(DetailedRecipeSerializer):
         if recipe_instance:
             recipe_instance = super().update(recipe_instance, validated_data)
         else:
-            recipe_instance = Recipe.objects.create(author=author, **validated_data)
+            recipe_instance = Recipe.objects.create(
+                author=author, **validated_data
+                )
 
         recipe_instance.tags.set(tags_list)
         recipe_instance.ingredients.set(ingred_objs)

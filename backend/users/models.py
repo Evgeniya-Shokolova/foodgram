@@ -1,7 +1,6 @@
 import base64
 import re
 
-from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.contrib.auth.models import AbstractUser
 from django.db import models
