@@ -1,17 +1,20 @@
+import csv
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from api.models import (FavoriteRecipe, Ingredient,
                         Recipe, ShoppingList, Tag)
-from rest_framework import mixins, permissions, status, viewsets, generics
+from rest_framework import permissions, status, viewsets, filters
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
+from rest_framework.exceptions import MethodNotAllowed
 
 from users.models import Follow, CustomUser
 from api.filters import RecipeFilter
 from api.permissions import RoleBasedPermission
 from api.serializers import (FollowerSerializer,
                              DetailedAmountIngredientSerializer,
+                             PasswordSerializer,
                              IngredientSerializer,
                              TagSerializer,
                              UserSerializer,
@@ -50,6 +53,15 @@ class UserViewSet(viewsets.ModelViewSet):
                         status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['GET'],
+            permission_classes=(permissions.IsAuthenticated, ))
+    def me(self, request):
+        serializer = UserSerializer(
+            request.user,
+            context={'request': request}
+        )
+        return Response(data=serializer.data)
+
+    @action(detail=False, methods=['GET'],
             permission_classes=(permissions.IsAuthenticated,))
     def get_profile(self, request):
         serializer = UserSerializer(
@@ -74,15 +86,42 @@ class UserViewSet(viewsets.ModelViewSet):
             serializer.data) if paginated_subscriptions else Response(
                 serializer.data, status=status.HTTP_200_OK
                 )
+    
+    @action(detail=False, methods=['POST'],
+            permission_classes=(permissions.IsAuthenticated,))
+    def set_password(self, request):
+        serializer = PasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
+        current_password = serializer.validated_data['current_password']
+        new_password = serializer.validated_data['new_password']
+        user = get_object_or_404(self.get_queryset(),
+                                 username=request.user.username)
+
+        if not user.check_password(current_password):
+            return Response({'current_password': 'Текущий пароль неверен.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    
     @action(detail=False, methods=["PUT", "DELETE"],
             permission_classes=[permissions.IsAuthenticated],
             url_path='me/avatar')
+
     def set_avatar(self, request):
         if request.method == "PUT":
             serializer = AvatarSerializer(
                 instance=request.user, data=request.data, partial=True
+            )
+
+            if 'avatar' not in request.data:
+                return Response(
+                    {"error": 'Поле "avatar" обязательно для заполнения.'},
+                    status=status.HTTP_400_BAD_REQUEST
                 )
+
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -116,16 +155,43 @@ class FollowViewSet(viewsets.ViewSet):
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
-class TagViewSet(viewsets.ReadOnlyModelViewSet):
+class TagViewSet(viewsets.ModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name']
+
+    def list(self, request):
+        name = request.query_params.get('name', None)
+        queryset = Tag.objects.filter(name__icontains=name) if name else Tag.objects.all()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def create(self, request, *args, **kwargs):
+        raise MethodNotAllowed(method='POST')
 
 
-class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
+class IngredientViewSet(viewsets.ModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
+    search_fields = ['name']
+
+    def list(self, request):
+        name = request.query_params.get('name', None)
+        queryset = Ingredient.objects.filter(name__icontains=name) if name else Ingredient.objects.all()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def create(self, request, *args, **kwargs):
+        raise MethodNotAllowed(method='POST')
+
+    def update(self, request, *args, **kwargs):
+        raise MethodNotAllowed(method='PUT')
+
+    def destroy(self, request, *args, **kwargs):
+        raise MethodNotAllowed(method='DELETE')
 
 
 class RecipeViewSet(viewsets.ModelViewSet):

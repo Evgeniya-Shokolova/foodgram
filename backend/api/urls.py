@@ -7,14 +7,13 @@ from rest_framework.routers import DefaultRouter
 from api.views import (FollowViewSet, IngredientViewSet, FavoriteRecipeController,
                        ShoppingCartController, TagViewSet, UserViewSet)
 
-# Создаем маршрутизатор
+
 router = DefaultRouter()
 router.register('users', UserViewSet, basename='user')
 router.register('tags', TagViewSet, basename='tag')
 router.register('ingredients', IngredientViewSet, basename='ingredient')
 router.register('recipes', FavoriteRecipeController, basename='recipe')
 
-# Определяем URL-шаблоны
 urlpatterns = [
     path('admin/', admin.site.urls),
 
@@ -26,17 +25,15 @@ urlpatterns = [
 
     path('api/', include(router.urls)),
 
-    # Подписка на пользователей
     path('api/users/<int:user_id>/subscribe/', 
          FollowViewSet.as_view({'post': 'create', 'delete': 'destroy'}),
          name='subscribe'),
 
-    # Управление покупками
     path('api/recipes/<int:id>/shopping_cart/', 
          ShoppingCartController.as_view({'post': 'create', 'delete': 'destroy'}),
          name='shopping_cart'),
 
-    # Обновление аватара
+
     path('api/users/me/avatar/',
          UserViewSet.as_view({'put': 'set_avatar'}),
          name='update_avatar_me'),
@@ -45,14 +42,12 @@ urlpatterns = [
          FavoriteRecipeController.as_view({'post': 'create', 'delete': 'destroy'}),
          name='favorite'),
 
-    # Обновление аватара для конкретного пользователя
     path('api/users/<int:id>/avatar/',
          UserViewSet.as_view({'put': 'set_avatar'}),
          name='update_avatar'),
 ]
 
-
 if settings.DEBUG:
     urlpatterns += static(
         settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
-        )
+    )

@@ -1,3 +1,4 @@
+import re
 import base64
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -55,7 +56,7 @@ class SignUpUserSerializer(serializers.ModelSerializer):
             'first_name',
             'last_name',
             'password'
-            )
+        )
 
     def validate(self, attrs):
         """
@@ -64,13 +65,17 @@ class SignUpUserSerializer(serializers.ModelSerializer):
         username = attrs.get('username')
         email = attrs.get('email')
 
-        if username == 'me':
+        # Валидация имени пользователя
+        if not re.match(r'^[\w.@+-]+$', username):
+            raise serializers.ValidationError('Имя пользователя может содержать только буквы, цифры и символы @/./+/-/_.')
+
+        if username == 'me' and 'username':
             raise serializers.ValidationError('Недопустимое имя пользователя!')
 
         if CustomUser.objects.filter(username=username).exists():
             raise serializers.ValidationError(
                 'Это имя пользователя уже кому-то принадлежит!'
-                )
+            )
 
         if CustomUser.objects.filter(email=email).exists():
             raise serializers.ValidationError('Этот email уже занят!')
@@ -116,7 +121,6 @@ class UserSerializer(serializers.ModelSerializer):
             current_user.is_authenticated and 
             user.following.filter(user=current_user).exists()
         ) if current_user else False
-
 
 class FollowerSerializer(UserSerializer):
     recipes = serializers.SerializerMethodField()
