@@ -5,8 +5,8 @@ from .models import Recipe
 
 class RecipeFilterSet(filters.FilterSet):
     """Фильтр по рецептам"""
-    is_favorited = filters.BooleanFilter(field_name='favorited_by', method='filter_favorited')
-    is_in_shopping_cart = filters.BooleanFilter(field_name='in_carts', method='filter_in_cart')
+    is_favorited = filters.BooleanFilter(method='filter_favorited')
+    is_in_shopping_cart = filters.BooleanFilter(method='filter_in_cart')
     author = filters.NumberFilter(field_name='author_id')
     tags = filters.CharFilter(field_name='tags__slug', lookup_expr='in')
 

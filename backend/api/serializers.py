@@ -1,6 +1,6 @@
 import re
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, PermissionDenied
 from django.core.files.base import ContentFile
 from rest_framework.response import Response
 from django.contrib.auth.password_validation import (
@@ -135,17 +135,25 @@ class FollowerSerializer(UserSerializer):
             'is_subscribed',
             'recipes',
             'recipes_count',
+            'avatar'
         )
 
-    def get_recipes(self, user_instance):
-        """Получение списка рецептов, созданных пользователем."""
-        recipes_queryset = user_instance.recipes.all()
-        recipe_serializer = RecipeSerializer(recipes_queryset, many=True)
-        return recipe_serializer.data
+    def get_recipes_count(self, obj):
+        return obj.author.recipe.count()
 
-    def get_recipes_count(self, user_instance):
-        """Возвращает общее количество рецептов, созданных пользователем."""
-        return user_instance.recipes.count()
+    def get_recipes(self, obj):
+        request = self.context.get('request')
+        limit = request.query_params.get('recipes_limit')
+        recipes = obj.recipes.all()
+        if limit:
+            try:
+                limit = int(limit)
+                if limit > 0:
+                    recipes = recipes[:limit]
+            except ValueError:
+                pass
+
+        return RecipeSerializer(recipes, many=True).data
 
 
 class PasswordSerializer(serializers.Serializer):
@@ -300,6 +308,8 @@ class RecipeSerializer(serializers.ModelSerializer):
         if 'image' not in data or not data['image']:
             raise serializers.ValidationError("Поле 'image' обязательно для заполнения.")
 
+        return data
+
     def validate_ingredients(self, value):
         if not value:
             raise serializers.ValidationError("Рецепт должен содержать хотя бы один ингредиент.")
@@ -344,9 +354,13 @@ class RecipeSerializer(serializers.ModelSerializer):
         recipe.tags.set(tags)
 
     def update(self, instance, validated_data):
-        """Метод обновления рецепта"""
-        ingredients = validated_data.pop('ingredients', None)
-        tags = validated_data.pop('tags', None)
+        """Метод обновления рецепта."""
+        request = self.context.get('request')
+        if request and instance.author != request.user:
+            raise PermissionDenied("Вы не можете обновить чужой рецепт!")
+
+        ingredients = validated_data.pop('ingredients')
+        tags = validated_data.pop('tags')
 
         instance.name = validated_data.get('name', instance.name)
         instance.text = validated_data.get('text', instance.text)

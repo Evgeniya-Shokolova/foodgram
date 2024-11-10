@@ -25,7 +25,7 @@ urlpatterns = [
 
     path('api/', include(router.urls)),
 
-    path('api/users/<int:user_id>/subscribe/', 
+    path('api/users/<int:user_id>/subscribe/',
          FollowViewSet.as_view({'post': 'create', 'delete': 'destroy'}),
          name='subscribe'),
 
