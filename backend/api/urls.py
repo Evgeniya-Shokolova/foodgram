@@ -4,15 +4,15 @@ from django.contrib import admin
 from django.urls import include, path
 from djoser.views import TokenCreateView, TokenDestroyView
 from rest_framework.routers import DefaultRouter
-from api.views import (FollowViewSet, IngredientViewSet, FavoriteRecipeController,
-                       ShoppingCartController, TagViewSet, UserViewSet)
+from api.views import (FollowViewSet, IngredientViewSet, FavoriteRecipeViewSet,
+                       ShoppingViewSet, TagViewSet, UserViewSet, RecipeViewSet)
 
 
 router = DefaultRouter()
 router.register('users', UserViewSet, basename='user')
 router.register('tags', TagViewSet, basename='tag')
 router.register('ingredients', IngredientViewSet, basename='ingredient')
-router.register('recipes', FavoriteRecipeController, basename='recipe')
+router.register('recipes', RecipeViewSet, basename='recipe')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -29,8 +29,8 @@ urlpatterns = [
          FollowViewSet.as_view({'post': 'create', 'delete': 'destroy'}),
          name='subscribe'),
 
-    path('api/recipes/<int:id>/shopping_cart/', 
-         ShoppingCartController.as_view({'post': 'create', 'delete': 'destroy'}),
+    path('api/recipes/<int:id>/shopping_cart/',
+         ShoppingViewSet.as_view({'post': 'create', 'delete': 'destroy'}),
          name='shopping_cart'),
 
 
@@ -38,8 +38,8 @@ urlpatterns = [
          UserViewSet.as_view({'put': 'set_avatar'}),
          name='update_avatar_me'),
 
-    path('api/recipes/<int:id>/favorite/', 
-         FavoriteRecipeController.as_view({'post': 'create', 'delete': 'destroy'}),
+    path('api/recipes/<int:id>/favorite/',
+         FavoriteRecipeViewSet.as_view({'post': 'create', 'delete': 'destroy'}),
          name='favorite'),
 
     path('api/users/<int:id>/avatar/',

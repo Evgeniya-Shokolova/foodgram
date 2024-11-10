@@ -1,24 +1,24 @@
 from django.contrib import admin
-from django.db.models import Count
+
 from api.models import (
     Recipe, Tag, Ingredient,
     ShoppingList, FavoriteRecipe
-    )
-
+)
 
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
     list_display = (
-        'name',
         'author',
-        'favorites_count',
+        'name',
         'cooking_time',
-        )
+        'is_favorite',
+        'pub_date',
+    )
     search_fields = ('name', 'author__username')
-    list_filter = ('tags',)
+    list_filter = ('pub_date', 'tags',)
 
-    def favorites_count(self, obj):
-        return obj.favorites_count
+    def is_favorite(self, obj):
+        return obj.favorite_recipes.count() > 0
 
 
 @admin.register(FavoriteRecipe)
@@ -28,7 +28,7 @@ class FavoriteRecipeAdmin(admin.ModelAdmin):
 
 
 @admin.register(ShoppingList)
-class ShoppingListtAdmin(admin.ModelAdmin):
+class ShoppingListAdmin(admin.ModelAdmin):
     list_display = ('user', 'recipe')
 
 

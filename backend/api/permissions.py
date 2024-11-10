@@ -19,8 +19,9 @@ class RoleBasedPermission(BasePermission):
             return True
 
         if request.user.is_authenticated:
-            if request.user.is_admin:
+            if request.user.is_staff:
                 return True
             if request.user == obj.author:
                 return True
         return False
+

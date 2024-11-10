@@ -5,7 +5,7 @@ from users.models import Follow, CustomUser
 
 
 @admin.register(CustomUser)
-class CustomUserAdmin(UserAdmin):
+class UserAdmin(UserAdmin):
     list_display = (
         'username',
         'first_name',
