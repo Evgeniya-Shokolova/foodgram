@@ -4,7 +4,8 @@ from rest_framework.permissions import (
 
 class RoleBasedPermission(BasePermission):
     """
-    Кастомное разрешение, позволяющее управлять объектом в зависимости от роли пользователя.
+    Кастомное разрешение, позволяющее управлять объектом
+    в зависимости от роли пользователя.
     """
 
     def has_permission(self, request, view):

@@ -1,9 +1,4 @@
-import base64
-
-from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
-from django.core.files.base import ContentFile
 from django.db import models
 
 from api.constants import (
@@ -60,7 +55,7 @@ class Recipe(models.Model):
         CustomUser,
         verbose_name='Автор рецепта',
         on_delete=models.CASCADE,
-        related_name='recipes',
+        related_name='recipes'
     )
     name = models.CharField(
         verbose_name='Название рецепта',
@@ -170,13 +165,13 @@ class ShoppingList(models.Model):
     user = models.ForeignKey(
         CustomUser,
         on_delete=models.CASCADE,
-        related_name='shopping_list_recipes',
+        related_name='shopping_carts',
         verbose_name='Покупатель'
     )
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
-        related_name='shopping_list_recipes',
+        related_name='in_shopping_carts',
         verbose_name='Рецепт для покупки'
     )
 
