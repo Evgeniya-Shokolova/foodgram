@@ -2,6 +2,7 @@ from rest_framework.permissions import (
     BasePermission, SAFE_METHODS
 )
 
+
 class RoleBasedPermission(BasePermission):
     """
     Кастомное разрешение, позволяющее управлять объектом

@@ -10,11 +10,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', get_random_secret_key())
 
-DEBUG = True
-#DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't')
+# DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't')
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',') or []
-# ALLOWED_HOSTS = ['fooding.hopto.org']
+DEBUG = True
+
+# ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',') or []
+
+ALLOWED_HOSTS = ['fooding.hopto.org', 'localhost', '127.0.0.1', '130.193.41.230']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -103,7 +105,7 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'collected_static'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = BASE_DIR / 'media'
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
