@@ -1,11 +1,7 @@
+from api.constants import (MAX_LENGTH_INGRIDIENT_NAME, MAX_LENGTH_RECIPE_NAME,
+                           MAX_LENGTH_TAG_NAME)
 from django.core.validators import MinValueValidator
 from django.db import models
-
-from api.constants import (
-    MAX_LENGTH_TAG_NAME,
-    MAX_LENGTH_INGRIDIENT_NAME,
-    MAX_LENGTH_RECIPE_NAME
-    )
 from users.models import CustomUser
 
 
@@ -127,8 +123,11 @@ class RecipeIngredient(models.Model):
         ]
 
     def __str__(self):
-        return f'{self.ingredient.name} - {self.amount} {self.ingredient.measurement_unit}'
-    
+        return (
+            f'{self.ingredient.name} - {self.amount}'
+            f'{self.ingredient.measurement_unit}'
+        )
+
 
 class FavoriteRecipe(models.Model):
     """Модель избранного рецепта"""

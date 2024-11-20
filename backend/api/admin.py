@@ -1,12 +1,13 @@
 from django.contrib import admin
 
-from api.models import (
-    Recipe, Tag, Ingredient,
-    ShoppingList, FavoriteRecipe
-)
+from .models import FavoriteRecipe, Ingredient, Recipe, ShoppingList, Tag
+
 
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
+    """
+    Интерфейс администратора для управления экземплярами модели Recipe.
+    """
 
     list_display = (
         'author',
@@ -19,11 +20,17 @@ class RecipeAdmin(admin.ModelAdmin):
     list_filter = ('pub_date', 'tags',)
 
     def is_favorite(self, obj):
+        """
+        Определяет, отмечен ли данный рецепт как любимый.
+        """
         return obj.favorite_recipes.count() > 0
 
 
 @admin.register(FavoriteRecipe)
 class FavoriteRecipeAdmin(admin.ModelAdmin):
+    """
+    Интерфейс администратора для управления экземплярами модели FavoriteRecipe.
+    """
 
     list_display = ('user', 'recipe')
     search_fields = ('user__username', 'recipe__name')
@@ -31,12 +38,18 @@ class FavoriteRecipeAdmin(admin.ModelAdmin):
 
 @admin.register(ShoppingList)
 class ShoppingListAdmin(admin.ModelAdmin):
+    """
+    Интерфейс администратора для управления экземплярами модели ShoppingList.
+    """
 
     list_display = ('user', 'recipe')
 
 
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
+    """
+    Интерфейс администратора для управления экземплярами модели Tag.
+    """
 
     list_display = ('name', 'slug')
     search_fields = ('name',)
@@ -44,6 +57,9 @@ class TagAdmin(admin.ModelAdmin):
 
 @admin.register(Ingredient)
 class IngredientAdmin(admin.ModelAdmin):
-    
+    """
+    Интерфейс администратора для управления экземплярами модели Ingredient.
+    """
+
     list_display = ('name', 'measurement_unit')
     search_fields = ('name',)
