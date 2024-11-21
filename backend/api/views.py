@@ -8,7 +8,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from .filters import IngredientFilterSet, RecipeFilterSet, TagFilterSet
-from .models import (CustomUser, FavoriteRecipe, Follow, Ingredient, Recipe,
+from .models import (CustomUser, Follow, FavoriteRecipe, Ingredient, Recipe,
                      RecipeIngredient, ShoppingList, Tag)
 from .pagination import PageLimitPaginator
 from .permissions import RoleBasedPermission
