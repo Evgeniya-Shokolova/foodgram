@@ -1,13 +1,14 @@
 import base64
 import re
 
-from api.constants import (MAX_LENGTH_EMAIL, MAX_LENGTH_FIRST_NAME,
-                           MAX_LENGTH_LAST_NAME, MAX_LENGTH_USERNAME,
-                           VALID_USERNAME_REGEX)
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.db import models
+
+from .constants import (MAX_LENGTH_EMAIL, MAX_LENGTH_FIRST_NAME,
+                        MAX_LENGTH_LAST_NAME, MAX_LENGTH_USERNAME,
+                        VALID_USERNAME_REGEX)
 
 
 def user_avatar_path(instance, filename):
