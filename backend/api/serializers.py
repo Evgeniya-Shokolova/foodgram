@@ -114,10 +114,8 @@ class UserSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request is not None:
             current_user = request.user
-            return (
-                current_user.is_authenticated and
-                user.following.filter(user=current_user).exists()
-            )
+            return (current_user.is_authenticated and user.following.filter(
+                user=current_user).exists())
         return False
 
 
@@ -239,7 +237,7 @@ class RecipeListSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'image', 'cooking_time')
 
 
-class RecipeAmountIngredientSerializer(serializers.ModelSerializer):
+class RecipeIngredientSerializer(serializers.ModelSerializer):
     """
     Сериализатор для отображении информации об ингредиентах.
     """
@@ -250,7 +248,7 @@ class RecipeAmountIngredientSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
-        model = RecipeIngredient
+        model = Ingredient
         fields = ('id', 'name', 'measurement_unit', 'amount')
 
     def validate_amount(self, value):
@@ -268,7 +266,7 @@ class DetailedRecipeSerializer(serializers.ModelSerializer):
     is_in_shopping_cart = serializers.SerializerMethodField()
     author = UserSerializer(read_only=True)
     tags = TagSerializer(read_only=True, many=True)
-    ingredients = RecipeAmountIngredientSerializer(many=True, read_only=True)
+    ingredients = RecipeIngredientSerializer(many=True, read_only=True)
 
     class Meta:
         model = Recipe

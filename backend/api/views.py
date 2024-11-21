@@ -1,13 +1,3 @@
-from api.filters import IngredientFilterSet, RecipeFilterSet, TagFilterSet
-from api.models import (FavoriteRecipe, Ingredient, Recipe, RecipeIngredient,
-                        ShoppingList, Tag)
-from api.pagination import PageLimitPaginator
-from api.permissions import RoleBasedPermission
-from api.serializers import (AvatarSerializer, FollowerSerializer,
-                             ImageSerializer, IngredientSerializer,
-                             PasswordSerializer, RecipeListSerializer,
-                             RecipeSerializer, SignUpUserSerializer,
-                             TagSerializer, UserSerializer)
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
@@ -16,7 +6,17 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from users.models import CustomUser, Follow
+
+from .filters import IngredientFilterSet, RecipeFilterSet, TagFilterSet
+from .models import (CustomUser, FavoriteRecipe, Follow, Ingredient, Recipe,
+                     RecipeIngredient, ShoppingList, Tag)
+from .pagination import PageLimitPaginator
+from .permissions import RoleBasedPermission
+from .serializers import (AvatarSerializer, DetailedRecipeSerializer,
+                          FollowerSerializer, ImageSerializer,
+                          IngredientSerializer, PasswordSerializer,
+                          RecipeListSerializer, SignUpUserSerializer,
+                          TagSerializer, UserSerializer)
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -226,7 +226,7 @@ class IngredientViewSet(viewsets.ModelViewSet):
 class RecipeViewSet(viewsets.ModelViewSet):
     """Обрабатывает запросы к рецептам."""
     queryset = Recipe.objects.all()
-    serializer_class = RecipeSerializer
+    serializer_class = DetailedRecipeSerializer
     pagination_class = PageLimitPaginator
     filter_backends = (DjangoFilterBackend,)
     filterset_class = RecipeFilterSet
@@ -283,11 +283,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def delete_recipe(self, model_class, recipe_id, error_type, action):
+        """Удаление рецепта"""
         recipe = get_object_or_404(Recipe, pk=recipe_id)
         user = self.request.user
         if recipe.author != user:
             return Response(
-                {'errors': 'У вас нет прав для выполнения этого действия!'},
+                {'errors': 'Нет прав для выполнения данного действия!'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
@@ -310,13 +311,17 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
 
     def _get_ingredients(self, ingredient_data_list, recipe_instance):
-        """**Получение объектов ингредиентов и связывание их с рецептом.**"""
+        """Получение объектов ингредиентов и связывание их с рецептом."""
         ingredient_objs = []
         for ingredient_data in ingredient_data_list:
             ingredient_instance = get_object_or_404(
                 Ingredient, pk=ingredient_data['id']
             )
-            if not RecipeIngredient.objects.filter(recipe=recipe_instance, ingredient=ingredient_instance, amount=ingredient_data['amount']).exists():
+            if not RecipeIngredient.objects.filter(
+                    recipe=recipe_instance,
+                    ingredient=ingredient_instance,
+                    amount=ingredient_data['amount']).exists():
+
                 ingredient_objs.append(RecipeIngredient(
                     recipe=recipe_instance,
                     ingredient=ingredient_instance,
@@ -348,7 +353,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def get_link(self, request, pk=None):
         """Возвращает короткую ссылку на рецепт."""
         recipe = get_object_or_404(Recipe, pk=pk)
-        short_link = f'http://{request.get_host()}/recipes/{recipe.id}/'
+        short_link = f'http: //{request.get_host()}/recipes/{recipe.id}/'
         return Response({'short-link': short_link}, status=status.HTTP_200_OK)
 
     @action(methods=['POST', 'DELETE'], detail=True,
@@ -362,22 +367,19 @@ class RecipeViewSet(viewsets.ModelViewSet):
             if ShoppingList.objects.filter(user=user, recipe=recipe).exists():
                 return Response(
                     {"detail": "Рецепт уже добавлен в корзину."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                    status=status.HTTP_400_BAD_REQUEST)
 
             ShoppingList.objects.create(user=user, recipe=recipe)
-            serializer = IngredientSerializer(recipe)
+            serializer = RecipeListSerializer(recipe)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         elif request.method == 'DELETE':
-            shopping_item = ShoppingList.objects.filter(
-                user=user, recipe=recipe
-            )
+            shopping_item = ShoppingList.objects.filter(user=user,
+                                                        recipe=recipe)
             if not shopping_item.exists():
                 return Response(
                     {"detail": "Рецепт не найден в корзине."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                    status=status.HTTP_400_BAD_REQUEST)
             shopping_item.delete()
             serializer = RecipeListSerializer(recipe)
             return Response(serializer.data, status=status.HTTP_204_NO_CONTENT)
@@ -401,8 +403,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             ingredient in unique_ingredients.items())
         response = HttpResponse(response_content, content_type='text/plain')
         response[
-            'Content-Disposition'
-        ] = 'attachment; filename="shopping_list.txt"'
+            'Content-Disposition'] = 'attachment; filename="shopping_list.txt"'
         return response
 
     @action(methods=['POST', 'DELETE'], detail=True,
@@ -412,8 +413,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
         recipe = get_object_or_404(Recipe, id=pk)
         user = request.user
         if request.method == 'POST':
-            if FavoriteRecipe.objects.filter(user=user,
-                                             recipe=recipe).exists():
+            if FavoriteRecipe.objects.filter(
+               user=user, recipe=recipe).exists():
+
                 return Response(
                     {"detail": "Рецепт уже добавлен в избранное."},
                     status=status.HTTP_400_BAD_REQUEST)
@@ -428,8 +430,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             if not favorite_item.exists():
                 return Response(
                     {"detail": "Рецепт не найден в избранном."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                    status=status.HTTP_400_BAD_REQUEST)
             favorite_item.delete()
             serializer = RecipeListSerializer(recipe)
             return Response(serializer.data, status=status.HTTP_204_NO_CONTENT)

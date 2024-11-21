@@ -1,8 +1,9 @@
-from api.constants import (MAX_LENGTH_INGRIDIENT_NAME, MAX_LENGTH_RECIPE_NAME,
-                           MAX_LENGTH_TAG_NAME)
 from django.core.validators import MinValueValidator
 from django.db import models
-from users.models import CustomUser
+
+from .constants import (MAX_LENGTH_INGRIDIENT_NAME, MAX_LENGTH_RECIPE_NAME,
+                        MAX_LENGTH_TAG_NAME)
+from .models import CustomUser
 
 
 class Tag(models.Model):
