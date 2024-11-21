@@ -1,14 +1,14 @@
 import re
 
-from api.constants import MAX_LENGTH_EMAIL, MAX_LENGTH_USERNAME
-from api.models import (FavoriteRecipe, Ingredient, Recipe, RecipeIngredient,
-                        ShoppingList, Tag)
 from django.contrib.auth.password_validation import (ValidationError,
                                                      validate_password)
 from django.core.exceptions import PermissionDenied, ValidationError
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
-from users.models import CustomUser, Follow
+
+from .constants import MAX_LENGTH_EMAIL, MAX_LENGTH_USERNAME
+from .models import (CustomUser, FavoriteRecipe, Follow, Ingredient, Recipe,
+                     RecipeIngredient, ShoppingList, Tag)
 
 
 class AvatarSerializer(serializers.ModelSerializer):
