@@ -2,7 +2,6 @@ import re
 
 from django.contrib.auth.password_validation import (ValidationError,
                                                      validate_password)
-from django.core.exceptions import PermissionDenied, ValidationError
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 from users.models import CustomUser, Follow
