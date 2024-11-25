@@ -360,6 +360,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     @action(methods=['POST', 'DELETE'], detail=True,
             permission_classes=[IsAuthenticated])
     def shopping_cart(self, request, pk=None):
+        """Добавить ингридиенты в список покупок"""
 
         recipe = get_object_or_404(Recipe, id=pk)
         user = request.user
@@ -389,6 +390,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             permission_classes=[permissions.IsAuthenticated],
             url_path="download_shopping_cart")
     def download_shopping_cart(self, request):
+        """Список покупок"""
 
         user = request.user
         shopping_list_items = ShoppingList.objects.filter(
@@ -410,6 +412,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     @action(methods=['POST', 'DELETE'], detail=True,
             permission_classes=[IsAuthenticated])
     def favorite(self, request, pk=None):
+        """Добавить рецепт в избранное"""
 
         recipe = get_object_or_404(Recipe, id=pk)
         user = request.user
