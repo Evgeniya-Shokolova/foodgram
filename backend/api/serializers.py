@@ -1,18 +1,15 @@
 import re
 
-from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import (ValidationError,
                                                      validate_password)
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.core.files.base import ContentFile
 from drf_extra_fields.fields import Base64ImageField
-from rest_framework import serializers, status
-from rest_framework.response import Response
+from rest_framework import serializers
 from users.models import CustomUser, Follow
 
-from api.constants import MAX_LENGTH_EMAIL, MAX_LENGTH_USERNAME
-from api.models import (FavoriteRecipe, Ingredient, Recipe, RecipeIngredient,
-                        ShoppingList, Tag)
+from .constants import MAX_LENGTH_EMAIL, MAX_LENGTH_USERNAME
+from .models import (FavoriteRecipe, Ingredient, Recipe, RecipeIngredient,
+                     ShoppingList, Tag)
 
 
 class AvatarSerializer(serializers.ModelSerializer):
@@ -118,8 +115,8 @@ class UserSerializer(serializers.ModelSerializer):
         if request is not None:
             current_user = request.user
             return (
-                current_user.is_authenticated and
-                user.following.filter(user=current_user).exists()
+                current_user.is_authenticated and user.following.filter
+                (user=current_user).exists()
             )
         return False
 
@@ -258,7 +255,7 @@ class RecipeAmountIngredientSerializer(serializers.ModelSerializer):
         if value <= 0:
             raise serializers.ValidationError(
                 "Количество должно быть положительным числом."
-                )
+            )
         return value
 
 

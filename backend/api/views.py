@@ -1,5 +1,3 @@
-import csv
-
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
@@ -10,17 +8,16 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from users.models import CustomUser, Follow
 
-from api.filters import IngredientFilterSet, RecipeFilterSet, TagFilterSet
-from api.models import (FavoriteRecipe, Ingredient, Recipe, RecipeIngredient,
-                        ShoppingList, Tag)
-from api.pagination import PageLimitPaginator
-from api.permissions import RoleBasedPermission
-from api.serializers import (AvatarSerializer, DetailedRecipeSerializer,
-                             FollowerSerializer, ImageSerializer,
-                             IngredientSerializer, PasswordSerializer,
-                             RecipeListSerializer, RecipeSerializer,
-                             SignUpUserSerializer, TagSerializer,
-                             UserSerializer)
+from .filters import IngredientFilterSet, RecipeFilterSet, TagFilterSet
+from .models import (FavoriteRecipe, Ingredient, Recipe, RecipeIngredient,
+                     ShoppingList, Tag)
+from .pagination import PageLimitPaginator
+from .permissions import RoleBasedPermission
+from .serializers import (AvatarSerializer, FollowerSerializer,
+                          ImageSerializer, IngredientSerializer,
+                          PasswordSerializer, RecipeListSerializer,
+                          RecipeSerializer, SignUpUserSerializer,
+                          TagSerializer, UserSerializer)
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -34,12 +31,11 @@ class UserViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             user = serializer.save()
             response_serializer = SignUpUserSerializer(
-                user, context={'request': request}
-                )
+                user, context={'request': request})
             return Response(
                 response_serializer.data,
                 status=status.HTTP_201_CREATED
-                )
+            )
         return Response({'errors': serializer.errors},
                         status=status.HTTP_400_BAD_REQUEST)
 
@@ -57,7 +53,7 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_profile(self, request):
         serializer = UserSerializer(
             request.user, context={'request': request}
-            )
+        )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['GET'],
@@ -280,7 +276,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def delete_recipe(self, request, model_class, recipe_id, error_type, action):
+    def delete_recipe(self, request, model_class, recipe_id,
+                      error_type, action):
         recipe = get_object_or_404(Recipe, pk=recipe_id)
         user = self.request.user
         if recipe.author != user:
@@ -313,7 +310,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
         for ingredient_data in ingredient_data_list:
             ingredient_instance = get_object_or_404(
                 Ingredient, pk=ingredient_data['id'])
-            if not RecipeIngredient.objects.filter(recipe=recipe_instance,ingredient=ingredient_instance, amount=ingredient_data['amount']).exists():
+            if not (
+                RecipeIngredient.objects.filter(
+                    recipe=recipe_instance,
+                    ingredient=ingredient_instance,
+                    amount=ingredient_data['amount']).exists()
+            ):
+
                 ingredient_objs.append(
                     RecipeIngredient(
                         recipe=recipe_instance,
@@ -345,7 +348,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def get_link(self, request, pk=None):
         """Возвращает короткую ссылку на рецепт."""
         recipe = get_object_or_404(Recipe, pk=pk)
-        short_link = f'http://{request.get_host()}/api/recipes/{recipe.id}/'
+        short_link = f'http: //{request.get_host()}/api/recipes/{recipe.id}/'
         return Response({'short-link': short_link}, status=status.HTTP_200_OK)
 
     @action(methods=['POST', 'DELETE'], detail=True,
@@ -367,7 +370,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         elif request.method == 'DELETE':
-            shopping_item = ShoppingList.objects.filter(user=user, recipe=recipe)
+            shopping_item = ShoppingList.objects.filter(user=user,
+                                                        recipe=recipe)
             if not shopping_item.exists():
                 return Response(
                     {"detail": "Рецепт не найден в корзине."},
