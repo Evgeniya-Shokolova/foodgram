@@ -47,13 +47,20 @@ pip install -r requirements.txt
 python manage.py runserver
 ```
 
-### В основной директории проекта, где лежит файл docker-compose.yml, выполнить команду:
+Далее создать файл .env в корне проекта:
 ```
-docker compose up -build
+DB_NAME=postgres # имя БД
+POSTGRES_USER=postgres # логин для подключения к БД
+POSTGRES_PASSWORD=postgres # пароль для подключения к БД
+DB_HOST=db # название сервиса
+DB_PORT=5432 # порт для подключения к БД
 ```
-В той же директории с файлом docker-compose.yml, но уже в новом терминале git, выполнить команды.
-Также эти команды можно выполнить в декстопном приложении Docker, провалиться в контейнер backend,
-войти в раздел exec и в консоль ввести команды.
+
+
+### Запуск проекта при помощи Docker:
+
+В директории с файлом docker-compose.yml, выполнить команды.
+
 ```
 docker compose exec backend python manage.py makemigrations
 ```
@@ -61,24 +68,19 @@ docker compose exec backend python manage.py migrate
 ```
 docker compose exec backend python manage.py load_ingredients
 ```
-```
 docker compose exec backend python manage.py load_tags
-```
-Последняя команда загружает в бд подготовленный набор необходимых данных(ингредиенты и тэги)
-Дополнительно можно создать суперпользователя, для доступа к админ-панели сайта, командой:
 ```
 docker compose exec backend python manage.py createsuperuser
 ```
-Также необходимо скопировать статику для админки Django
+
+Копируем статику для админки Django
+
 ```
 docker compose exec backend python manage.py collectstatic
 ```
-И скопировать статику в volume static для бэкенда
+И статику для бэкенда
 ```
 docker compose exec backend cp -r /app/collected_static/. /backend_static/static/ 
 ```
 
-После Foodgram станет доступен по адресу http://localhost 
-
-Список доступных API-эндпоинтов доступен по ссылке http://localhost/api/redoc/
-
+Foodgram доступен по адресу https://fooding.hopto.org

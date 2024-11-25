@@ -122,7 +122,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 class FollowerSerializer(UserSerializer):
     """
-    Сериализатор для отображения информации о пользователе
+    Сериализатор для отображения информации о подписчике
     и его рецептах.
     """
 
@@ -211,13 +211,6 @@ class IngredientSerializer(serializers.ModelSerializer):
         model = Ingredient
         fields = ('id', 'name', 'measurement_unit')
 
-    def validate_quantity(self, value):
-        if value < 1:
-            raise serializers.ValidationError(
-                "Количество ингредиента должно быть положительным числом."
-            )
-        return value
-
 
 class IngredientCreateSerializer(serializers.ModelSerializer):
     """Серилизатор для добавления ингридиентов"""
@@ -228,6 +221,13 @@ class IngredientCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = RecipeIngredient
         fields = ('id', 'amount')
+
+    def validate_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError(
+                "Количество ингредиента должно быть положительным числом."
+            )
+        return ValueError
 
 
 class RecipeListSerializer(serializers.ModelSerializer):
@@ -284,7 +284,7 @@ class DetailedRecipeSerializer(serializers.ModelSerializer):
             'cooking_time',
         )
 
-    def get_chosen_recipe(self, obj, model):
+    def get_recipe(self, obj, model):
         """
         Метод получения статуса выбранного рецепта
         для избранного и списка покупок.
@@ -300,15 +300,15 @@ class DetailedRecipeSerializer(serializers.ModelSerializer):
 
     def get_is_favorited(self, obj):
         """Узнать, является ли рецепт избранным."""
-        return self.get_chosen_recipe(obj, FavoriteRecipe)
+        return self.get_recipe(obj, FavoriteRecipe)
 
     def get_is_in_shopping_cart(self, obj):
         """Узнать, находится ли рецепт в списке покупок."""
-        return self.get_chosen_recipe(obj, ShoppingList)
+        return self.get_recipe(obj, ShoppingList)
 
 
 class RecipeSerializer(serializers.ModelSerializer):
-    """Сериализатор для создания рецепта."""
+    """Сериализатор для создания и обновления рецепта."""
 
     ingredients = IngredientCreateSerializer(many=True)
     tags = serializers.PrimaryKeyRelatedField(
@@ -333,19 +333,19 @@ class RecipeSerializer(serializers.ModelSerializer):
         return DetailedRecipeSerializer(instance, context=self.context).data
 
     def validate(self, data):
-        required_fields = ['name', 'ingredients', 'cooking_time', 'tags']
+        """Общая валидация для рецепта."""
+        required_fields = ['name', 'ingredients',
+                           'cooking_time', 'tags', 'image']
         for field in required_fields:
             if field not in data or not data[field]:
-                raise serializers.ValidationError(f"{field} требуется.")
-
-        if 'image' not in data or not data['image']:
-            raise serializers.ValidationError(
-                "Поле 'image' обязательно для заполнения."
-            )
+                raise serializers.ValidationError(
+                    {field: f"Поле '{field}' требуется."}
+                )
 
         return data
 
     def validate_ingredients(self, value):
+        """Валидация списка ингредиентов."""
         if not value:
             raise serializers.ValidationError(
                 "Рецепт должен содержать хотя бы один ингредиент."
@@ -353,21 +353,25 @@ class RecipeSerializer(serializers.ModelSerializer):
 
         ingredient_ids = []
         for ingredient in value:
-            if ingredient['amount'] < 1:
+            ingredient_id = ingredient.get('ingredient')
+            amount = ingredient.get('amount')
+
+            if amount is None or amount < 1:
                 raise serializers.ValidationError(
                     "Количество ингредиента должно быть не менее 1."
                 )
 
-            if ingredient['id'] in ingredient_ids:
+            if ingredient_id in ingredient_ids:
                 raise serializers.ValidationError(
                     "Ингредиенты не должны повторяться."
                 )
 
-            ingredient_ids.append(ingredient['id'])
+            ingredient_ids.append(ingredient_id)
 
         return value
 
     def validate_tags(self, value):
+        """Валидация списка тегов."""
         if not value:
             raise serializers.ValidationError(
                 "Рецепт должен содержать хотя бы один тег."
@@ -375,15 +379,11 @@ class RecipeSerializer(serializers.ModelSerializer):
 
         tag_ids = []
         for tag in value:
-            if tag in tag_ids:
+            if tag.id in tag_ids:
                 raise serializers.ValidationError(
                     "Теги не должны повторяться."
                 )
-            tag_ids.append(tag)
-        if not value:
-            raise serializers.ValidationError(
-                "Рецепт должен содержать хотя бы один тег."
-            )
+            tag_ids.append(tag.id)
 
         return value
 
@@ -391,16 +391,11 @@ class RecipeSerializer(serializers.ModelSerializer):
         """Создание рецепта."""
         ingredients = validated_data.pop('ingredients')
         tags = validated_data.pop('tags')
-        recipe = Recipe.objects.create(**validated_data)
-        self.update_or_create_ingredient(
-            recipe=recipe, ingredients=ingredients
-        )
+        user = self.context['request'].user
+        recipe = Recipe.objects.create(author=user, **validated_data)
+        self.update_create_ingredient(recipe=recipe, ingredients=ingredients)
         recipe.tags.set(tags)
         return recipe
-
-    def __create_tags(self, tags, recipe):
-        """Метод добавления тегов."""
-        recipe.tags.set(tags)
 
     def update(self, instance, validated_data):
         """Метод обновления рецепта."""
@@ -415,23 +410,28 @@ class RecipeSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
 
-        self.__create_tags(tags, instance)
-        self._update_ingredients(ingredients, instance)
+        if tags:
+            instance.tags.set(tags)
+        if ingredients:
+            self.update_create_ingredient(instance, ingredients)
 
         return instance
 
-    def _update_ingredients(self, ingredient_data_list, recipe_instance):
-        """Обновление объектов ингредиентов и связывание их с рецептом."""
-        RecipeIngredient.objects.filter(recipe=recipe_instance).delete()
-        self.update_or_create_ingredient(recipe_instance, ingredient_data_list)
+    def update_create_ingredient(self, recipe, ingredients) -> None:
+        """Добавление/обновление ингредиентов для рецепта."""
+        existing_ingredients = RecipeIngredient.objects.filter(recipe=recipe)
+        existing_ingredient_ids = existing_ingredients.values_list(
+            'ingredient_id', flat=True
+        )
 
-    def update_or_create_ingredient(self, recipe, ingredients) -> None:
-        """Добавление или обновление ингредиентов для рецепта."""
-        ingredient_list = [
-            RecipeIngredient(
+        new_ingredient_ids = [item['ingredient'].id for item in ingredients]
+        RecipeIngredient.objects.filter(
+            recipe=recipe,
+            ingredient_id__in=existing_ingredient_ids
+        ).exclude(ingredient_id__in=new_ingredient_ids).delete()
+        for ingredient in ingredients:
+            RecipeIngredient.objects.update_or_create(
                 recipe=recipe,
-                ingredient=ingredient['id'],
-                amount=ingredient['amount']
-            ) for ingredient in ingredients
-        ]
-        RecipeIngredient.objects.bulk_create(ingredient_list)
+                ingredient=ingredient['ingredient'],
+                defaults={'amount': ingredient['amount']}
+            )
