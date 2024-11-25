@@ -31,6 +31,8 @@ class ImageSerializer(serializers.ModelSerializer):
 
 
 class SignUpUserSerializer(serializers.ModelSerializer):
+    """Регистрация нового пользователя"""
+
     email = serializers.EmailField(
         max_length=MAX_LENGTH_EMAIL,
         required=True
@@ -328,19 +330,18 @@ class RecipeSerializer(serializers.ModelSerializer):
         return DetailedRecipeSerializer(instance, context=self.context).data
 
     def validate(self, data):
-        required_fields = ['name', 'ingredients', 'cooking_time', 'tags']
+        """Проверка данных перед созданием рецепта."""
+        required_fields = [
+            'name', 'ingredients', 'cooking_time', 'tags', 'image'
+        ]
         for field in required_fields:
             if field not in data or not data[field]:
                 raise serializers.ValidationError(f"{field} требуется.")
 
-        if 'image' not in data or not data['image']:
-            raise serializers.ValidationError(
-                "Поле 'image' обязательно для заполнения."
-            )
-
         return data
 
     def validate_ingredients(self, value):
+        """Проверка списка ингредиентов."""
         if not value:
             raise serializers.ValidationError(
                 "Рецепт должен содержать хотя бы один ингредиент."
@@ -363,6 +364,7 @@ class RecipeSerializer(serializers.ModelSerializer):
         return value
 
     def validate_tags(self, value):
+        """Проверка списка тегов."""
         if not value:
             raise serializers.ValidationError(
                 "Рецепт должен содержать хотя бы один тег."
@@ -375,10 +377,6 @@ class RecipeSerializer(serializers.ModelSerializer):
                     "Теги не должны повторяться."
                 )
             tag_ids.append(tag)
-        if not value:
-            raise serializers.ValidationError(
-                "Рецепт должен содержать хотя бы один тег."
-            )
 
         return value
 

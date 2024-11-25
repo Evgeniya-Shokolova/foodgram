@@ -237,11 +237,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
 
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        return queryset
-
-    def create(self, request, *args, **kwargs):
+    def create_recipe(self, request, *args, **kwargs):
         """Создание рецепта."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -254,7 +250,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    def update(self, request, *args, **kwargs):
+    def update_recipe(self, request, *args, **kwargs):
         """Обновление рецептв"""
         recipe_instance = self.get_object()
 
@@ -348,12 +344,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def get_link(self, request, pk=None):
         """Возвращает короткую ссылку на рецепт."""
         recipe = get_object_or_404(Recipe, pk=pk)
-        short_link = f'http: //{request.get_host()}/api/recipes/{recipe.id}/'
+        short_link = f'http: //{request.get_host()}/recipes/{recipe.id}/'
         return Response({'short-link': short_link}, status=status.HTTP_200_OK)
 
     @action(methods=['POST', 'DELETE'], detail=True,
             permission_classes=[IsAuthenticated])
     def shopping_cart(self, request, pk=None):
+        """Добавление ингридиентов рецепта в корзину"""
 
         recipe = get_object_or_404(Recipe, id=pk)
         user = request.user
@@ -385,6 +382,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             permission_classes=[permissions.IsAuthenticated],
             url_path="download_shopping_cart")
     def download_shopping_cart(self, request):
+        """Список покупок"""
 
         user = request.user
         shopping_list_items = ShoppingList.objects.filter(
@@ -408,6 +406,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     @action(methods=['POST', 'DELETE'], detail=True,
             permission_classes=[IsAuthenticated])
     def favorite(self, request, pk=None):
+        """Избранные рецепты"""
 
         recipe = get_object_or_404(Recipe, id=pk)
         user = request.user
