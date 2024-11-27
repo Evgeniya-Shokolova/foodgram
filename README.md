@@ -3,47 +3,50 @@
 «Фудграм» — сайт, на котором пользователи могут публиковать свои рецепты, добавлять чужие рецепты в избранное и подписываться на публикации других авторов. Зарегистрированным пользователям также будет доступен сервис «Список покупок». Он позволит создавать список продуктов, которые нужно купить для приготовления выбранных блюд.
 
 
-`Выполнить клонирование`
+### Установка и запуск
+
+
+Выполнить клонирование
 ```bash
-git clone git@github.com: yandex-praktikum/api_yamdb.git
+git clone git@github.com: yandex-praktikum/foodgram.git
 ```
-`Перейти в папку с проектом` 
-```bash
-cd api_yamdb
+Перейти в папку с проектом
 ```
-`Создать виртуальное окружение:`
+cd foodgram
+```
+Создать виртуальное окружение:
    Команда для Windows: -
-```bash
+```
 python -m venv venv
 ```
 Команда для Linux и macOS: - 
-```bash
+```
 python3 -m venv venv
 ```
 Активировать виртуальное окружение:`
    Команда для Windows: -
-```bash
+```
 source venv/Scripts/activate
 ```
 Для Linux и macOS: -
-```bash
+```
 source venv/bin/activate
 ```
-`Обновить пакетный менеджер:`
+Обновить пакетный менеджер:
    Для Windows: -
-```bash
+```
 python -m pip install --upgrade pip
 ```
 Для Linux и macOS: -
-```bash
+```
 python3 -m pip install --upgrade pip
 ```
 Установить модули из файла requirementst.txt:`
-```bash
+```
 pip install -r requirements.txt
 ```
-`Запустить приложение`
-```bash
+Запустить приложение
+```
 python manage.py runserver
 ```
 
@@ -64,11 +67,15 @@ DB_PORT=5432 # порт для подключения к БД
 ```
 docker compose exec backend python manage.py makemigrations
 ```
+```
 docker compose exec backend python manage.py migrate
+```
 ```
 docker compose exec backend python manage.py load_ingredients
 ```
+```
 docker compose exec backend python manage.py load_tags
+```
 ```
 docker compose exec backend python manage.py createsuperuser
 ```

@@ -139,7 +139,7 @@ class FollowViewSet(viewsets.ViewSet):
 
         if request.user.follower.filter(author=author_to_follow).exists():
             return Response(
-                {"detail": "Вы уже подписаны на данного пользователя."},
+                {"detail": 'Вы уже подписаны на данного пользователя.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -268,7 +268,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         if recipe_instance.author != request.user:
             return Response(
-                {"detail": "Вы не можете обновить этот рецепт."},
+                {"detail":
+                 'Вы не можете редактировать рецепт другого пользователя.'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
@@ -286,11 +287,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def delete_recipe(self, request, model_class, recipe_id,
                       error_type, action):
+        """Удаление рецепта"""
         recipe = get_object_or_404(Recipe, pk=recipe_id)
         user = self.request.user
         if recipe.author != user:
             return Response(
-                {'errors': 'У вас нет прав для выполнения этого действия!'},
+                {'errors': 'Нельзя удалить рецепт другого пользователя!'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
@@ -304,13 +306,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 {'message': 'Рецепт успешно удален.'},
                 status=status.HTTP_204_NO_CONTENT
             )
-        elif action == 'edit':
-            pass
-
-        return Response(
-            {'errors': 'Неверное действие!'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
 
     def _get_ingredients(self, ingredient_data_list, recipe_instance):
         """Получение объектов ингредиентов и связывание их с рецептом."""
@@ -344,9 +339,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
                                          data=request.data, partial=True)
             serializer.is_valid(raise_exception=True)
             serializer.save()
-
             return Response(serializer.data, status=status.HTTP_200_OK)
-
         recipe.image = None
         recipe.save()
         return Response({"image": None}, status=status.HTTP_204_NO_CONTENT)
@@ -365,14 +358,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
         """Добавление ингридиентов рецепта в корзину"""
         recipe = get_object_or_404(Recipe, id=pk)
         user = request.user
-
         if request.method == 'POST':
             if ShoppingList.objects.filter(user=user, recipe=recipe).exists():
                 return Response(
-                    {"detail": "Рецепт уже добавлен в корзину."},
+                    {"detail": 'Рецепт уже в корзине.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
             ShoppingList.objects.create(user=user, recipe=recipe)
             serializer = RecipeListSerializer(recipe)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -382,16 +373,16 @@ class RecipeViewSet(viewsets.ModelViewSet):
                                                         recipe=recipe)
             if not shopping_item.exists():
                 return Response(
-                    {"detail": "Рецепт не найден в корзине."},
+                    {"detail": 'Рецепт не найден в корзине.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             shopping_item.delete()
             serializer = RecipeListSerializer(recipe)
             return Response(serializer.data, status=status.HTTP_204_NO_CONTENT)
 
-    @action(detail=False, methods=["get"],
+    @action(detail=False, methods=['GET'],
             permission_classes=[permissions.IsAuthenticated],
-            url_path="download_shopping_cart")
+            url_path='download_shopping_cart')
     def download_shopping_cart(self, request):
         """Список покупок"""
         user = request.user
@@ -405,7 +396,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             ingredient.name: ingredient for ingredient in ingredients
         }
         response_content = '\n'.join(
-            f"{name} ({ingredient.measurement_unit})" for name,
+            f'{name} ({ingredient.measurement_unit})' for name,
             ingredient in unique_ingredients.items())
         response = HttpResponse(response_content, content_type='text/plain')
         response[
@@ -423,7 +414,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             if FavoriteRecipe.objects.filter(user=user,
                                              recipe=recipe).exists():
                 return Response(
-                    {"detail": "Рецепт уже добавлен в избранное."},
+                    {"detail": 'Рецепт уже добавлен в избранное.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
@@ -436,7 +427,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
                                                           recipe=recipe)
             if not favorite_item.exists():
                 return Response(
-                    {"detail": "Рецепт не найден в избранном."},
+                    {"detail": 'Рецепт не найден в избранном.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             favorite_item.delete()

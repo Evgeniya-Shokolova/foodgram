@@ -174,9 +174,9 @@ class PasswordSerializer(serializers.Serializer):
         """Валидация нового пароля, проверка его соответствия требованиям."""
         try:
             validate_password(value)
-        except ValidationError as e:
+        except ValidationError as error:
             raise serializers.ValidationError(
-                {'new_password': list(e.messages)}
+                {'new_password': list(error.messages)}
             )
         return value
 
@@ -386,7 +386,7 @@ class RecipeSerializer(serializers.ModelSerializer):
                 )
             if ingredient['amount'] < 1:
                 raise serializers.ValidationError(
-                    "Количество ингредиента должно быть не менее 1."
+                    'Количество ингредиента должно быть не менее 1.'
                 )
             unique_ids.add(ingredient_id)
         return value
@@ -395,7 +395,7 @@ class RecipeSerializer(serializers.ModelSerializer):
         """Проверка списка тегов."""
         if not value:
             raise serializers.ValidationError(
-                "Рецепт должен содержать хотя бы один тег."
+                'Рецепт должен содержать хотя бы один тег.'
             )
         tag_ids = []
         for tag in value:
@@ -420,7 +420,9 @@ class RecipeSerializer(serializers.ModelSerializer):
         """Метод обновления рецепта."""
         request = self.context.get('request')
         if request and instance.author != request.user:
-            raise PermissionDenied('Вы не можете обновить чужой рецепт!')
+            raise PermissionDenied(
+                'Вы не можете обновить рецепт другого пользователя!'
+            )
         ingredients = validated_data.pop('ingredients', [])
         tags = validated_data.pop('tags', [])
         for attr, value in validated_data.items():
