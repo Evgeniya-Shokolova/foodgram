@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):
-    help = 'Импорт тегов из data/tags.json'
+    help = 'Импорт тегов'
 
     def handle(self, *args, **kwargs):
         file_path = settings.BASE_DIR / 'data' / 'tags.json'
