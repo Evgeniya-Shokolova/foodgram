@@ -21,6 +21,7 @@ from .serializers import (AvatarSerializer, FollowerSerializer,
 
 
 class UserViewSet(viewsets.ModelViewSet):
+    """ViewSet пользователя"""
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
     permission_classes = (permissions.AllowAny,)
@@ -51,6 +52,7 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['GET'],
             permission_classes=(permissions.IsAuthenticated,))
     def get_profile(self, request):
+        """Профиль пользователя"""
         serializer = UserSerializer(
             request.user, context={'request': request}
         )
@@ -59,7 +61,7 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['GET'],
             permission_classes=(permissions.AllowAny,))
     def subscriptions(self, request):
-        """Возвращает список авторов, на которых подписан пользователь."""
+        """Авторы, на которых подписан пользователь."""
         user = request.user
         subscriptions = Follow.objects.filter(user=user)
         authors = [follow.author for follow in subscriptions]
@@ -98,7 +100,7 @@ class UserViewSet(viewsets.ModelViewSet):
             permission_classes=[IsAuthenticated],
             url_path='me/avatar')
     def set_avatar(self, request):
-        """Добавить аватар"""
+        """Добавить/удалить аватар"""
         if request.method == "PUT":
             serializer = AvatarSerializer(
                 instance=request.user, data=request.data, partial=True
@@ -117,11 +119,16 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class FollowViewSet(viewsets.ViewSet):
+    """Управление подписками пользователей."""
     permission_classes = [IsAuthenticated]
     serializer_class = FollowerSerializer
     pagination_class = PageLimitPaginator
 
     def create(self, request, user_id):
+        """
+        Создание подписки на выбранного пользователя.
+        Пользователь не может подписаться на себя или повторно подписаться.
+        """
         author_to_follow = get_object_or_404(CustomUser, id=user_id)
 
         if author_to_follow == request.user:
@@ -143,6 +150,9 @@ class FollowViewSet(viewsets.ViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def destroy(self, request, user_id):
+        """
+        Удаление подписки на выбранного пользователя.
+        """
         author_to_unfollow = get_object_or_404(CustomUser, id=user_id)
         follow_instance = request.user.follower.filter(
             author=author_to_unfollow
@@ -151,23 +161,25 @@ class FollowViewSet(viewsets.ViewSet):
         if follow_instance.exists():
             follow_instance.delete()
             return Response(
-                {"detail": "Успешная отписка."},
+                {"detail": 'Вы успешно отписались.'},
                 status=status.HTTP_204_NO_CONTENT
             )
 
         return Response(
-            {"detail": "Вы не подписаны на данного пользователя."},
+            {"detail": 'Вы не подписаны на данного пользователя.'},
             status=status.HTTP_400_BAD_REQUEST
         )
 
 
 class TagViewSet(viewsets.ModelViewSet):
+    """Управление тегами."""
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
     permission_classes = [AllowAny]
     filterset_class = TagFilterSet
 
     def list(self, request):
+        """Список тегов."""
         name = request.query_params.get('name', None)
         queryset = Tag.objects.filter(
             name__icontains=name) if name else Tag.objects.all()
@@ -196,7 +208,6 @@ class IngredientViewSet(viewsets.ModelViewSet):
 
     def list(self, request):
         """Получает список ингредиентов."""
-
         name = request.query_params.get('name', None)
         queryset = Ingredient.objects.filter(
             name__icontains=name) if name else Ingredient.objects.all()
@@ -205,12 +216,10 @@ class IngredientViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """Запрещает создание ингредиента."""
-
         raise MethodNotAllowed(method='POST')
 
     def update(self, request, *args, **kwargs):
         """Запрещает обновление ингредиента."""
-
         raise MethodNotAllowed(method='PUT')
 
     def destroy(self, request, *args, **kwargs):
@@ -220,7 +229,9 @@ class IngredientViewSet(viewsets.ModelViewSet):
 
 class RecipeViewSet(viewsets.ModelViewSet):
     """Обрабатывает запросы к рецептам."""
-    queryset = Recipe.objects.all()
+    queryset = Recipe.objects.prefetch_related(
+        'recipe_ingredients__ingredient', 'tags'
+    )
     serializer_class = RecipeSerializer
     pagination_class = PageLimitPaginator
     filter_backends = (DjangoFilterBackend,)
@@ -229,6 +240,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete']
 
     def get_permissions(self):
+        """Определяет права доступа к действиям."""
         if self.action == 'get_link':
             permission_classes = [permissions.AllowAny]
         elif self.action in ['list', 'retrieve']:
@@ -351,7 +363,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
             permission_classes=[IsAuthenticated])
     def shopping_cart(self, request, pk=None):
         """Добавление ингридиентов рецепта в корзину"""
-
         recipe = get_object_or_404(Recipe, id=pk)
         user = request.user
 
@@ -383,7 +394,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
             url_path="download_shopping_cart")
     def download_shopping_cart(self, request):
         """Список покупок"""
-
         user = request.user
         shopping_list_items = ShoppingList.objects.filter(
             user=user).select_related('recipe')
@@ -407,7 +417,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
             permission_classes=[IsAuthenticated])
     def favorite(self, request, pk=None):
         """Избранные рецепты"""
-
         recipe = get_object_or_404(Recipe, id=pk)
         user = request.user
         if request.method == 'POST':

@@ -12,10 +12,9 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', get_random_secret_key())
 
 DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't')
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',') or []
+# ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',') or []
 
-# ALLOWED_HOSTS = [
-# 'fooding.hopto.org', 'localhost', '127.0.0.1', '130.193.41.230']
+ALLOWED_HOSTS = ['fooding.hopto.org', 'localhost', '127.0.0.1', '130.193.41.230']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
