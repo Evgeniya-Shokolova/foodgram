@@ -341,12 +341,11 @@ class DetailedRecipeSerializer(serializers.ModelSerializer):
 
 class RecipeSerializer(serializers.ModelSerializer):
     """Сериализатор для создания рецепта."""
-    ingredients = RecipeAmountIngredientSerializer(many=True)
+    ingredients = IngredientCreateSerializer(many=True)
     tags = serializers.PrimaryKeyRelatedField(
-        many=True,
-        queryset=Tag.objects.all()
+        many=True, queryset=Tag.objects.all()
     )
-    image = Base64ImageField(required=True)
+    image = Base64ImageField(required=False)
 
     class Meta:
         model = Recipe
@@ -401,7 +400,7 @@ class RecipeSerializer(serializers.ModelSerializer):
         for tag in value:
             if tag in tag_ids:
                 raise serializers.ValidationError(
-                    "Теги не должны повторяться."
+                    'Теги не должны повторяться.'
                 )
             tag_ids.append(tag)
         return value
@@ -413,11 +412,20 @@ class RecipeSerializer(serializers.ModelSerializer):
         validated_data['author'] = self.context['request'].user
         recipe = Recipe.objects.create(**validated_data)
         recipe.tags.set(tags)
-        self.update_or_create_ingredient(recipe, ingredients)
+        recipe_ingredients = []
+        for ingredient in ingredients:
+            recipe_ingredients.append(
+                RecipeIngredient(
+                    recipe=recipe,
+                    ingredient_id=ingredient["id"],
+                    amount=ingredient["amount"]
+                )
+            )
+        RecipeIngredient.objects.bulk_create(recipe_ingredients)
         return recipe
 
     def update(self, instance, validated_data):
-        """Метод обновления рецепта."""
+        """Обновление рецепта с ингредиентами и тегами."""
         request = self.context.get('request')
         if request and instance.author != request.user:
             raise PermissionDenied(
@@ -425,18 +433,37 @@ class RecipeSerializer(serializers.ModelSerializer):
             )
         ingredients = validated_data.pop('ingredients', [])
         tags = validated_data.pop('tags', [])
+        image = validated_data.pop('image', None)
+        if image:
+            instance.image = image
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
         instance.tags.set(tags)
-        self.update_or_create_ingredient(instance, ingredients)
+        existing_ingredients = RecipeIngredient.objects.filter(recipe=instance)
+        existing_ingredient_map = {
+            ing.ingredient.id: ing for ing in existing_ingredients
+        }
+        ingredients_to_update = []
+        ingredients_to_create = []
+        for ingredient in ingredients:
+            ingredient_id = ingredient['id']
+            if isinstance(ingredient_id, Ingredient):
+                ingredient_id = ingredient_id.id
+            amount = ingredient['amount']
+            if ingredient_id in existing_ingredient_map:
+                existing_ingredient = existing_ingredient_map[ingredient_id]
+                existing_ingredient.amount = amount
+                ingredients_to_update.append(existing_ingredient)
+            else:
+                ingredients_to_create.append(RecipeIngredient(
+                    recipe=instance,
+                    ingredient_id=ingredient_id,
+                    amount=amount
+                ))
+        if ingredients_to_update:
+            RecipeIngredient.objects.bulk_update(ingredients_to_update,
+                                                 ['amount'])
+        if ingredients_to_create:
+            RecipeIngredient.objects.bulk_create(ingredients_to_create)
         return instance
-
-    def update_or_create_ingredient(self, recipe, ingredients):
-        """Добавление или обновление ингредиентов для рецепта."""
-        ingredient_list = [
-            RecipeIngredient(
-                recipe=recipe,
-                ingredient=ingredient['id'],
-                amount=ingredient['amount']) for ingredient in ingredients]
-        RecipeIngredient.objects.bulk_create(ingredient_list)

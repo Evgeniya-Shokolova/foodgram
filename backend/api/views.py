@@ -249,84 +249,49 @@ class RecipeViewSet(viewsets.ModelViewSet):
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
 
-    def create_recipe(self, request, *args, **kwargs):
-        """Создание рецепта."""
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+    def perform_create(self, serializer):
+        """Создание рецепта вместе с ингредиентами."""
+        ingredients_data = self.request.data.get('ingredients', [])
+        recipe = serializer.save(author=self.request.user)
+        self.manage_ingredients(recipe, ingredients_data)
 
-        recipe = serializer.save(author=request.user)
-
-        ingredients_data = request.data.get('ingredients', [])
-        if ingredients_data:
-            self._get_ingredients(ingredients_data, recipe)
-
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-    def update_recipe(self, request, *args, **kwargs):
-        """Обновление рецептв"""
+    def perform_update(self, serializer):
+        """Обновление рецепта вместе с ингредиентами."""
         recipe_instance = self.get_object()
+        ingredients_data = self.request.data.get('ingredients', [])
+        serializer.save()
+        self.manage_ingredients(recipe_instance, ingredients_data)
 
-        if recipe_instance.author != request.user:
-            return Response(
-                {"detail":
-                 'Вы не можете редактировать рецепт другого пользователя.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        serializer = self.get_serializer(recipe_instance,
-                                         data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-
-        if 'ingredients' in request.data:
-            ingredients_data = request.data.get('ingredients', [])
-            recipe_instance.ingredients.clear()
-            self._get_ingredients(ingredients_data, recipe_instance)
-
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def delete_recipe(self, request, model_class, recipe_id,
-                      error_type, action):
-        """Удаление рецепта"""
-        recipe = get_object_or_404(Recipe, pk=recipe_id)
-        user = self.request.user
-        if recipe.author != user:
-            return Response(
-                {'errors': 'Нельзя удалить рецепт другого пользователя!'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        existing_entry = model_class.objects.filter(
-            recipe=recipe, user=user).first()
-
-        if action == 'delete':
-            if not existing_entry:
-                return self._handle_not_found_error(error_type)
-            return Response(
-                {'message': 'Рецепт успешно удален.'},
-                status=status.HTTP_204_NO_CONTENT
-            )
-
-    def _get_ingredients(self, ingredient_data_list, recipe_instance):
-        """Получение объектов ингредиентов и связывание их с рецептом."""
-        ingredient_objs = []
-        for ingredient_data in ingredient_data_list:
-            ingredient_instance = get_object_or_404(
-                Ingredient, pk=ingredient_data['id'])
-            if not (
-                RecipeIngredient.objects.filter(
-                    recipe=recipe_instance,
+    def manage_ingredients(self, recipe, ingredients_data):
+        """
+        Обновление ингредиентов рецепта: добавление новых,
+        обновление существующих и удаление тех, которые отсутствуют в запросе.
+        """
+        existing_ingredients_dict = {
+            ingredient.ingredient_id: ingredient
+            for ingredient in RecipeIngredient.objects.filter(recipe=recipe)
+        }
+        new_ingredients_ids = []
+        for ingredient_data in ingredients_data:
+            ingredient_id = ingredient_data['id']
+            new_ingredients_ids.append(ingredient_id)
+            if ingredient_id in existing_ingredients_dict:
+                existing_ingredient = existing_ingredients_dict[ingredient_id]
+                new_amount = ingredient_data['amount']
+                if existing_ingredient.amount != new_amount:
+                    existing_ingredient.amount = new_amount
+                    existing_ingredient.save()
+            else:
+                ingredient_instance = get_object_or_404(Ingredient,
+                                                        id=ingredient_id)
+                RecipeIngredient.objects.create(
+                    recipe=recipe,
                     ingredient=ingredient_instance,
-                    amount=ingredient_data['amount']).exists()
-            ):
-
-                ingredient_objs.append(
-                    RecipeIngredient(
-                        recipe=recipe_instance,
-                        ingredient=ingredient_instance,
-                        amount=ingredient_data['amount'])
+                    amount=ingredient_data['amount']
                 )
-        RecipeIngredient.objects.bulk_create(ingredient_objs)
+        RecipeIngredient.objects.filter(recipe=recipe).exclude(
+            ingredient_id__in=new_ingredients_ids
+        ).delete()
 
     @action(['POST', 'DELETE'], detail=True,
             permission_classes=[IsAuthenticated], url_path='image')
@@ -340,9 +305,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
+
         recipe.image = None
         recipe.save()
-        return Response({"image": None}, status=status.HTTP_204_NO_CONTENT)
+        return Response({"detail": 'Изображение удалено.'},
+                        status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['GET'], url_path='get-link',
             permission_classes=[permissions.AllowAny])
