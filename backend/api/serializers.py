@@ -2,7 +2,6 @@ import re
 
 from django.contrib.auth.password_validation import (ValidationError,
                                                      validate_password)
-from django.core.exceptions import PermissionDenied
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 from users.models import CustomUser, Follow
@@ -236,7 +235,7 @@ class IngredientCreateSerializer(serializers.ModelSerializer):
     def validate_amount(self, value):
         if value <= 0:
             raise serializers.ValidationError(
-                'Количество должно быть положительным числом.'
+                'Количество должно быть больше нуля.'
             )
         return value
 
@@ -263,6 +262,13 @@ class RecipeAmountIngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = RecipeIngredient
         fields = ('id', 'name', 'measurement_unit', 'amount')
+
+    def validate_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError(
+                'Количество должно быть положительным числом.'
+            )
+        return value
 
 
 class DetailedRecipeSerializer(serializers.ModelSerializer):
@@ -318,7 +324,7 @@ class RecipeSerializer(serializers.ModelSerializer):
     tags = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Tag.objects.all()
     )
-    image = Base64ImageField(required=False)
+    image = Base64ImageField(required=False, allow_null=True)
 
     class Meta:
         model = Recipe
@@ -390,8 +396,8 @@ class RecipeSerializer(serializers.ModelSerializer):
             recipe_ingredients.append(
                 RecipeIngredient(
                     recipe=recipe,
-                    ingredient_id=ingredient["id"],
-                    amount=ingredient["amount"]
+                    ingredient=ingredient['id'],
+                    amount=ingredient['amount']
                 )
             )
         RecipeIngredient.objects.bulk_create(recipe_ingredients)
@@ -399,44 +405,28 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         """Обновление рецепта с ингредиентами и тегами."""
-        request = self.context.get('request')
-        if request and instance.author != request.user:
-            raise PermissionDenied(
-                'Вы не можете обновить рецепт другого пользователя!'
-            )
-        ingredients = validated_data.pop('ingredients', [])
-        tags = validated_data.pop('tags', [])
-        image = validated_data.pop('image', None)
-        if image:
-            instance.image = image
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
+        instance.name = validated_data.get('name', instance.name)
+        instance.text = validated_data.get('text', instance.text)
+        instance.cooking_time = validated_data.get('cooking_time',
+                                                   instance.cooking_time)
+        if 'image' in validated_data:
+            instance.image = validated_data.get('image')
         instance.save()
-        instance.tags.set(tags)
-        existing_ingredients = RecipeIngredient.objects.filter(recipe=instance)
-        existing_ingredient_map = {
-            ing.ingredient.id: ing for ing in existing_ingredients
-        }
-        ingredients_to_update = []
-        ingredients_to_create = []
-        for ingredient in ingredients:
-            ingredient_id = ingredient['id']
-            if isinstance(ingredient_id, Ingredient):
-                ingredient_id = ingredient_id.id
-            amount = ingredient['amount']
-            if ingredient_id in existing_ingredient_map:
-                existing_ingredient = existing_ingredient_map[ingredient_id]
-                existing_ingredient.amount = amount
-                ingredients_to_update.append(existing_ingredient)
-            else:
-                ingredients_to_create.append(RecipeIngredient(
-                    recipe=instance,
-                    ingredient_id=ingredient_id,
-                    amount=amount
-                ))
-        if ingredients_to_update:
-            RecipeIngredient.objects.bulk_update(ingredients_to_update,
-                                                 ['amount'])
-        if ingredients_to_create:
-            RecipeIngredient.objects.bulk_create(ingredients_to_create)
+        tags = validated_data.get('tags', None)
+        if tags is not None:
+            instance.tags.set(tags)
+        ingredients_data = validated_data.get('ingredients', None)
+        if ingredients_data is not None:
+            instance.recipe_ingredients.all().delete()
+            recipe_ingredients = []
+            for ingredient in ingredients_data:
+                recipe_ingredients.append(
+                    RecipeIngredient(
+                        recipe=instance,
+                        ingredient=ingredient['id'],
+                        amount=ingredient['amount']
+                    )
+                )
+            RecipeIngredient.objects.bulk_create(recipe_ingredients)
+
         return instance

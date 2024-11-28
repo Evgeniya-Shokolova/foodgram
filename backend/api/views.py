@@ -9,8 +9,7 @@ from rest_framework.response import Response
 from users.models import CustomUser, Follow
 
 from .filters import IngredientFilterSet, RecipeFilterSet, TagFilterSet
-from .models import (FavoriteRecipe, Ingredient, Recipe, RecipeIngredient,
-                     ShoppingList, Tag)
+from .models import FavoriteRecipe, Ingredient, Recipe, ShoppingList, Tag
 from .pagination import PageLimitPaginator
 from .permissions import RoleBasedPermission
 from .serializers import (AvatarSerializer, FollowerSerializer,
@@ -250,48 +249,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return [permission() for permission in permission_classes]
 
     def perform_create(self, serializer):
-        """Создание рецепта вместе с ингредиентами."""
-        ingredients_data = self.request.data.get('ingredients', [])
-        recipe = serializer.save(author=self.request.user)
-        self.manage_ingredients(recipe, ingredients_data)
+        """Создание рецепта."""
+        serializer.save(author=self.request.user)
 
     def perform_update(self, serializer):
-        """Обновление рецепта вместе с ингредиентами."""
-        recipe_instance = self.get_object()
-        ingredients_data = self.request.data.get('ingredients', [])
+        """Обновление рецепта."""
         serializer.save()
-        self.manage_ingredients(recipe_instance, ingredients_data)
-
-    def manage_ingredients(self, recipe, ingredients_data):
-        """
-        Обновление ингредиентов рецепта: добавление новых,
-        обновление существующих и удаление тех, которые отсутствуют в запросе.
-        """
-        existing_ingredients_dict = {
-            ingredient.ingredient_id: ingredient
-            for ingredient in RecipeIngredient.objects.filter(recipe=recipe)
-        }
-        new_ingredients_ids = []
-        for ingredient_data in ingredients_data:
-            ingredient_id = ingredient_data['id']
-            new_ingredients_ids.append(ingredient_id)
-            if ingredient_id in existing_ingredients_dict:
-                existing_ingredient = existing_ingredients_dict[ingredient_id]
-                new_amount = ingredient_data['amount']
-                if existing_ingredient.amount != new_amount:
-                    existing_ingredient.amount = new_amount
-                    existing_ingredient.save()
-            else:
-                ingredient_instance = get_object_or_404(Ingredient,
-                                                        id=ingredient_id)
-                RecipeIngredient.objects.create(
-                    recipe=recipe,
-                    ingredient=ingredient_instance,
-                    amount=ingredient_data['amount']
-                )
-        RecipeIngredient.objects.filter(recipe=recipe).exclude(
-            ingredient_id__in=new_ingredients_ids
-        ).delete()
 
     @action(['POST', 'DELETE'], detail=True,
             permission_classes=[IsAuthenticated], url_path='image')
