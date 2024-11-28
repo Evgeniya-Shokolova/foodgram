@@ -3,7 +3,7 @@ from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import MethodNotAllowed
+from rest_framework.exceptions import MethodNotAllowed, PermissionDenied
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from users.models import CustomUser, Follow
@@ -254,7 +254,24 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         """Обновление рецепта."""
-        serializer.save()
+        instance = self.get_object()
+        current_user = self.request.user
+
+        if instance.author != current_user:
+            raise PermissionDenied(
+                'У вас нет прав на изменение этого рецепта.'
+            )
+
+        serializer.save(author=current_user)
+
+    def perform_destroy(self, instance):
+        """Обновление рецепта."""
+        current_user = self.request.user
+        if instance.author != current_user:
+            raise PermissionDenied(
+                'У вас нет прав на удаление этого рецепта.'
+            )
+        instance.delete()
 
     @action(['POST', 'DELETE'], detail=True,
             permission_classes=[IsAuthenticated], url_path='image')

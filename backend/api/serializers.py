@@ -57,8 +57,8 @@ class SignUpUserSerializer(serializers.ModelSerializer):
         """
         Проверяет уникальность имени пользователя и адреса электронной почты.
         """
-        username = user_data.get('user_name')
-        email_address = user_data.get('email_address')
+        username = user_data.get('username')
+        email_address = user_data.get('email')
 
         if not re.match(r'^[\w.@+-]+$', username):
             raise serializers.ValidationError(
@@ -339,14 +339,26 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         """Проверка данных перед созданием рецепта."""
-        required_fields = [
-            'name', 'ingredients', 'cooking_time', 'tags', 'image'
-        ]
-        for field in required_fields:
-            if field not in data or not data[field]:
+        required_fields = ['name', 'ingredients', 'cooking_time', 'tags']
+        if self.instance is None:
+            for field in required_fields:
+                if field not in data or not data[field]:
+                    raise serializers.ValidationError(
+                        f'{field} обязательное поле.'
+                    )
+            if 'image' not in data or data['image'] is None:
                 raise serializers.ValidationError(
-                    f'{field} обязательное поле.'
+                    'Изображение является обязательным полем.'
                 )
+        else:
+            for field in required_fields[:-1]:
+                if field not in data or not data[field]:
+                    raise serializers.ValidationError(
+                        f'{field} обязательное поле.'
+                    )
+        if 'image' not in data:
+            data['image'] = self.instance.image
+
         return data
 
     def validate_ingredients(self, value):
@@ -409,9 +421,11 @@ class RecipeSerializer(serializers.ModelSerializer):
         instance.text = validated_data.get('text', instance.text)
         instance.cooking_time = validated_data.get('cooking_time',
                                                    instance.cooking_time)
+
         if 'image' in validated_data:
             instance.image = validated_data.get('image')
         instance.save()
+
         tags = validated_data.get('tags', None)
         if tags is not None:
             instance.tags.set(tags)
@@ -420,13 +434,13 @@ class RecipeSerializer(serializers.ModelSerializer):
             instance.recipe_ingredients.all().delete()
             recipe_ingredients = []
             for ingredient in ingredients_data:
+                amount = ingredient['amount']
                 recipe_ingredients.append(
                     RecipeIngredient(
                         recipe=instance,
                         ingredient=ingredient['id'],
-                        amount=ingredient['amount']
+                        amount=amount
                     )
                 )
             RecipeIngredient.objects.bulk_create(recipe_ingredients)
-
         return instance
