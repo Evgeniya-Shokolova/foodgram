@@ -1,39 +1,13 @@
-import base64
-import re
-
+from api.constants import (MAX_LENGTH_FIRST_NAME, MAX_LENGTH_LAST_NAME,
+                           MAX_LENGTH_USERNAME)
 from django.contrib.auth.models import AbstractUser
-from django.core.exceptions import ValidationError
-from django.core.files.base import ContentFile
+from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.db import models
-
-from .constants import (MAX_LENGTH_EMAIL, MAX_LENGTH_FIRST_NAME,
-                        MAX_LENGTH_LAST_NAME, MAX_LENGTH_USERNAME,
-                        VALID_USERNAME_REGEX)
 
 
 def user_avatar_path(instance, filename):
     """Возвращает путь для загрузки аватара пользователя."""
     return f'avatars/user_{instance.id}/{filename}'
-
-
-def validate_username(value):
-    """
-    Функция для проверки корректности имени пользователя.
-    Запрещает использовать "me", и спец. символы, отличные от разрешенных.
-    """
-    if value.lower() == 'me':
-        raise ValidationError(
-            'Использование "me" в качестве имени пользователя запрещено.',
-            code='invalid_username')
-
-    invalid_chars = re.sub(VALID_USERNAME_REGEX, '', value)
-
-    if invalid_chars:
-        raise ValidationError(
-            f'Имя пользователя содержит недопустимые символы: {invalid_chars}.'
-            'Разрешены только буквы, цифры, и символы @/./+/-/_',
-            code='invalid_characters'
-        )
 
 
 class CustomUser(AbstractUser):
@@ -42,10 +16,9 @@ class CustomUser(AbstractUser):
         'Имя пользователя',
         max_length=MAX_LENGTH_USERNAME,
         unique=True,
-        validators=[validate_username],
+        validators=[UnicodeUsernameValidator()],
     )
     email = models.EmailField(
-        max_length=MAX_LENGTH_EMAIL,
         unique=True,
         verbose_name='Электронная почта'
     )
@@ -68,27 +41,11 @@ class CustomUser(AbstractUser):
     REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
 
     class Meta:
-        verbose_name = "Пользователь"
+        verbose_name = 'Пользователь'
         verbose_name_plural = "Пользователи"
 
     def __str__(self):
         return self.username
-
-    def set_avatar(self, base64_data):
-        """
-        Устанавливает аватар из строки Base64.
-        """
-        if base64_data.startswith('data:image/jpeg;base64,'):
-            suffix, base64_data = 'jpg', base64_data.split(',')[1]
-        elif base64_data.startswith('data:image/png;base64,'):
-            suffix, base64_data = 'png', base64_data.split(',')[1]
-        else:
-            raise ValidationError('Неподдерживаемый формат изображения.')
-
-        image_data = base64.b64decode(base64_data)
-        image_file = ContentFile(image_data, name=f'avatar.{suffix}')
-
-        self.avatar.save(f'avatar.{suffix}', image_file, save=True)
 
 
 class Follow(models.Model):
@@ -107,8 +64,8 @@ class Follow(models.Model):
     )
 
     class Meta:
-        verbose_name = "Подписка"
-        verbose_name_plural = "Подписки"
+        verbose_name = 'Подписка'
+        verbose_name_plural = 'Подписки'
         ordering = ['user']
         constraints = [
             models.UniqueConstraint(

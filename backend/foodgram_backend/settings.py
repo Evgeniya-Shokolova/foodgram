@@ -13,8 +13,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', get_random_secret_key())
 DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't')
 
 # ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',') or []
-
-ALLOWED_HOSTS = ['fooding.hopto.org', 'localhost', '127.0.0.1', '130.193.41.230']
+ALLOWED_HOSTS = 'fooding.hopto.org', 'localhost', '127.0.0.1', '130.193.41.230'
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -29,6 +28,7 @@ INSTALLED_APPS = [
     'django_filters',
     'api.apps.ApiConfig',
     'users.apps.UsersConfig',
+    'recipes.apps.RecipesConfig'
 ]
 
 MIDDLEWARE = [
@@ -61,16 +61,26 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'foodgram_backend.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('POSTGRES_DB', 'django'),
-        'USER': os.getenv('POSTGRES_USER', 'django'),
-        'PASSWORD': os.getenv('POSTGRES_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', ''),
-        'PORT': os.getenv('DB_PORT', 5432)
+SQLITE = os.getenv('SQLITE', 'False').lower() in ('true', '1', 't')
+
+if SQLITE:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('POSTGRES_DB', 'django'),
+            'USER': os.getenv('POSTGRES_USER', 'django'),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD', ''),
+            'HOST': os.getenv('DB_HOST', ''),
+            'PORT': os.getenv('DB_PORT', 5432),
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -100,7 +110,7 @@ USE_TZ = True
 AUTH_USER_MODEL = 'users.CustomUser'
 
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'collected_static'
+STATIC_ROOT = '/backend_static/static/'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -120,10 +130,17 @@ REST_FRAMEWORK = {
 
 
 DJOSER = {
+    'LOGIN_FIELD': 'email',
+
     'SERIALIZERS': {
-        'user_create': 'api.serializers.SignUpUserSerializer',
+        'user_create': 'djoser.serializers.UserCreateSerializer',
         'user': 'api.serializers.UserSerializer',
         'current_user': 'api.serializers.UserSerializer',
         'token_create': 'djoser.serializers.TokenCreateSerializer',
+    },
+
+    'PERMISSIONS': {
+        'user_list': ['rest_framework.permissions.AllowAny'],
+        'user': ['rest_framework.permissions.IsAuthenticated'],
     },
 }

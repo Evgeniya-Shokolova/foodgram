@@ -1,8 +1,8 @@
 import json
 
-from api.models import Tag
 from django.conf import settings
 from django.core.management.base import BaseCommand
+from recipes.models import Tag
 
 
 class Command(BaseCommand):

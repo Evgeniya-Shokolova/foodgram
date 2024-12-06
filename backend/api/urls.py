@@ -5,15 +5,14 @@ from django.urls import include, path
 from djoser.views import TokenCreateView, TokenDestroyView
 from rest_framework.routers import DefaultRouter
 
-from .views import (FollowViewSet, IngredientViewSet, RecipeViewSet,
-                    TagViewSet, UserViewSet)
+from .views import IngredientViewSet, RecipeViewSet, TagViewSet, UserViewSet
 
 router = DefaultRouter()
-router.register(r'users', UserViewSet, basename='user')
+router.register('users', UserViewSet, basename='user')
 router.register('tags', TagViewSet, basename='tag')
 router.register('ingredients', IngredientViewSet, basename='ingredient')
-router.register(r'recipes', RecipeViewSet, basename='recipe')
-# router.register('shopping_cart', RecipeViewSet, basename='shopping_cart')
+router.register('recipes', RecipeViewSet, basename='recipe')
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -26,17 +25,6 @@ urlpatterns = [
          TokenDestroyView.as_view(),
          name='token_logout'),
     path('api/', include(router.urls)),
-    path('api/users/<int:user_id>/subscribe/',
-         FollowViewSet.as_view({'post': 'create', 'delete': 'destroy'}),
-         name='subscribe'),
-    # path('api/recipes/<int:pk>/get_link/',
-    # RecipeViewSet.as_view({'get': 'get_link'}), name='get_link'),
-    path('api/users/me/avatar/',
-         UserViewSet.as_view({'put': 'set_avatar'}),
-         name='update_avatar_me'),
-    path('api/users/<int:id>/avatar/',
-         UserViewSet.as_view({'put': 'set_avatar'}),
-         name='update_avatar')
 ]
 
 if settings.DEBUG:
