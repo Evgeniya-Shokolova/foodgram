@@ -3,23 +3,24 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet as DjoserUserViewSet
-from recipes.models import (FavoriteRecipe, Ingredient, Recipe,
-                            RecipeIngredient, ShoppingList, Tag)
+
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ReadOnlyModelViewSet
-from users.models import CustomUser, Follow
 
-from .filters import IngredientFilterSet, RecipeFilterSet
-from .pagination import PageLimitPaginator
-from .permissions import IsAuthorOrReadOnly
-from .serializers import (AvatarSerializer, FavoriteRecipeSerializer,
-                          FollowerCreateSerializer, FollowerRetrieveSerializer,
-                          IngredientSerializer, RecipeSerializer,
-                          ShoppingCartSerializer, TagSerializer,
-                          UserSerializer)
+from api.filters import IngredientFilterSet, RecipeFilterSet
+from api.pagination import PageLimitPaginator
+from api.permissions import IsAuthorOrReadOnly
+from api.serializers import (AvatarSerializer, FavoriteRecipeSerializer,
+                             FollowerCreateSerializer,
+                             FollowerRetrieveSerializer, IngredientSerializer,
+                             RecipeSerializer, ShoppingCartSerializer,
+                             TagSerializer, UserSerializer)
+from recipes.models import (FavoriteRecipe, Ingredient, Recipe,
+                            RecipeIngredient, ShoppingList, Tag)
+from users.models import CustomUser, Follow
 
 
 class UserViewSet(DjoserUserViewSet):
@@ -27,6 +28,7 @@ class UserViewSet(DjoserUserViewSet):
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
     permission_classes = (permissions.AllowAny,)
+    pagination_class = PageLimitPaginator
 
     @action(detail=False, methods=['GET'],
             permission_classes=[permissions.IsAuthenticated])
@@ -60,16 +62,14 @@ class UserViewSet(DjoserUserViewSet):
     def subscriptions(self, request):
         """Получение авторов, на которых подписан пользователь"""
         queryset = CustomUser.objects.filter(following__user=request.user)
-        paginator = PageLimitPaginator()
-        result_page = paginator.paginate_queryset(queryset, request, view=self)
+        page = self.paginate_queryset(queryset)
         serializer = FollowerRetrieveSerializer(
-            result_page, many=True, context={'request': request}
-        )
-        return paginator.get_paginated_response(serializer.data)
+            page, many=True, context={'request': request})
+        return self.get_paginated_response(serializer.data)
 
     @action(detail=True, methods=['POST'],
             permission_classes=[IsAuthenticated], url_path="subscribe")
-    def subscrible(self, request, id=None):
+    def subscribe(self, request, id=None):
         """Создание подписки на пользователя."""
         user_to_follow = get_object_or_404(CustomUser, id=id)
         serializer = FollowerCreateSerializer(
@@ -78,27 +78,27 @@ class UserViewSet(DjoserUserViewSet):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        response_serializer = FollowerRetrieveSerializer(
+        response_data = FollowerRetrieveSerializer(
             user_to_follow, context={'request': request}
-        )
-        return Response(response_serializer.data,
-                        status=status.HTTP_201_CREATED)
+        ).data
 
-    @subscrible.mapping.delete
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+    @subscribe.mapping.delete
     def remove_subscription(self, request, id=None):
         """Удаление подписки на пользователя."""
         user_to_follow = get_object_or_404(CustomUser, id=id)
         deleted_count, _ = Follow.objects.filter(
             user=request.user, author=user_to_follow
         ).delete()
-        if deleted_count > 0:
+        if not deleted_count:
             return Response(
-                {'detail': 'Вы успешно отписались.'},
-                status=status.HTTP_204_NO_CONTENT
+                {'detail': 'Вы не подписаны на данного пользователя.'},
+                status=status.HTTP_400_BAD_REQUEST
             )
         return Response(
-            {'detail': 'Вы не подписаны на данного пользователя.'},
-            status=status.HTTP_400_BAD_REQUEST
+            {'detail': 'Вы успешно отписались.'},
+            status=status.HTTP_204_NO_CONTENT
         )
 
 
@@ -107,15 +107,7 @@ class TagViewSet(ReadOnlyModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
     permission_classes = [AllowAny]
-
-    def list(self, request, *args, **kwargs):
-        """Получает список тегов."""
-        # оставила метод,
-        # иначе ошибка 'Ответ не соответствует структуре',
-        # но изменила его.
-        queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    pagination_class = None
 
 
 class IngredientViewSet(ReadOnlyModelViewSet):
@@ -125,16 +117,7 @@ class IngredientViewSet(ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
     filterset_class = IngredientFilterSet
     search_fields = ('^name',)
-
-    def list(self, request):
-        # оставила метод,
-        # иначе ошибка 'Ответ не соответствует структуре'
-        """Получает список ингредиентов."""
-        name = request.query_params.get('name', None)
-        queryset = Ingredient.objects.filter(
-            name__istartswith=name) if name else Ingredient.objects.all()
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    pagination_class = None
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
@@ -153,16 +136,15 @@ class RecipeViewSet(viewsets.ModelViewSet):
             permission_classes=[permissions.AllowAny])
     def get_link(self, request, pk=None):
         """Возвращает короткую ссылку на рецепт."""
-        recipe = get_object_or_404(Recipe, pk=pk)
-        short_link = f'http: //{request.get_host()}/recipes/{recipe.id}/'
-        return Response({'short-link': short_link}, status=status.HTTP_200_OK)
+        recipe = get_object_or_404(Recipe, id=pk)
+        full_url = request.build_absolute_uri(f'/recipes/{recipe.id}/')
+        return Response({'short-link': full_url}, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['GET'],
-            permission_classes=[permissions.AllowAny],
-            url_path='redirect/(?P<short_id>[^/]+)')
-    def redirect_to_recipe(self, request, short_id=None):
+            url_path='get-link')
+    def redirect_to_recipe(self, request, pk=None):
         """Перенаправляет пользователя по короткой ссылке рецепта."""
-        recipe = get_object_or_404(Recipe, short_id=short_id)
+        recipe = get_object_or_404(Recipe, id=pk)
         full_url = request.build_absolute_uri(f'/recipes/{recipe.id}/')
         return HttpResponseRedirect(full_url)
 
@@ -186,16 +168,17 @@ class RecipeViewSet(viewsets.ModelViewSet):
         """Удаление рецепта из корзины."""
         recipe = get_object_or_404(Recipe, id=pk)
         shopping_item = ShoppingList.objects.filter(user=request.user,
-                                                    recipe=recipe).first()
-        if not shopping_item:
+                                                    recipe=recipe)
+        if not shopping_item.exists():
             return Response(
-                {"detail": "Рецепт отсутствует в корзине пользователя."},
+                {'detail': 'Рецепт отсутствует в корзине пользователя.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
         shopping_item.delete()
 
         return Response(
-            {"detail": "Рецепт был успешно удалён из корзины."},
+            {'detail': 'Рецепт был успешно удалён из корзины.'},
             status=status.HTTP_204_NO_CONTENT
         )
 
@@ -209,12 +192,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
             user=user).values_list('recipe', flat=True)
         ingredients = (
             RecipeIngredient.objects.filter(recipe__in=recipes_in_cart)
-            .values('ingredient__name', 'ingredient__measurement_unit')
+            .values('ingredient__name',
+                    'ingredient__measurement_unit')
             .annotate(total_amount=Sum('amount'))
         )
         response_content = '\n'.join(
-            f'{item["ingredient_name"]}'
-            f'({item["ingredient_measurement_unit"]}) - '
+            f'{item["ingredient__name"]}'
+            f'({item["ingredient__measurement_unit"]}) - '
             f'{item["total_amount"]}'
             for item in ingredients
         )
@@ -246,8 +230,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             user=request.user,
             recipe=recipe
         ).delete()
-
-        if favorite_item_deleted == 0:
+        if not favorite_item_deleted:
             return Response(
                 {'detail': 'Рецепт не найден в избранном.'},
                 status=status.HTTP_400_BAD_REQUEST

@@ -1,7 +1,8 @@
 from django.contrib import admin
 
-from .models import (FavoriteRecipe, Ingredient, Recipe, RecipeIngredient,
-                     ShoppingList, Tag)
+from recipes.models import (FavoriteRecipe, Ingredient,
+                            Recipe, RecipeIngredient,
+                            ShoppingList, Tag)
 
 
 class RecipeIngredientInline(admin.TabularInline):
@@ -13,28 +14,15 @@ class RecipeIngredientInline(admin.TabularInline):
     verbose_name_plural = 'Ингредиенты'
 
 
-class RecipeTagInline(admin.TabularInline):
-    """Inline для тегов"""
-    model = Recipe.tags.through
-    extra = 0
-    verbose_name = 'Тег'
-    verbose_name_plural = 'Теги'
-
-
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
     """Админка для рецептов с учетом ингредиентов и тегов"""
     list_display = ('id', 'name', 'author', 'cooking_time', 'pub_date')
     list_filter = ('author', 'tags')
     search_fields = ('name', 'author__username')
-    inlines = (RecipeIngredientInline, RecipeTagInline)
+    inlines = (RecipeIngredientInline,)
     readonly_fields = ('pub_date',)
     save_on_top = True
-
-    def get_inline_instances(self, request, obj=None):
-        """Проверяем доступность инлайнов и переопределяем их"""
-        inlines = super().get_inline_instances(request, obj)
-        return [inline for inline in inlines]
 
 
 @admin.register(FavoriteRecipe)

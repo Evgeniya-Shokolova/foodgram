@@ -1,11 +1,15 @@
+import random
+import string
+
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
+from users.models import CustomUser
+
 from api.constants import (MAX_AMOUNT_INGR, MAX_COOKING_TIME,
                            MAX_LENGTH_INGRIDIENT_NAME,
                            MAX_LENGTH_MEASUREMENT_UNIT, MAX_LENGTH_RECIPE_NAME,
                            MAX_LENGTH_TAG_NAME, MIN_AMOUNT_INGR,
-                           MIN_COOKING_TIME)
-from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import models
-from users.models import CustomUser
+                           MIN_COOKING_TIME, MAX_LENGTH_SHORT_LINK)
 
 
 class Tag(models.Model):
@@ -86,12 +90,12 @@ class Recipe(models.Model):
         verbose_name='Время приготовления рецепта',
         validators=[
             MinValueValidator(MIN_COOKING_TIME,
-                              message=f'Слишком быстро, '
-                              f'время приготовления должно быть больше'
+                              message='Слишком быстро, '
+                              'время приготовления должно быть больше'
                               f' - {MIN_COOKING_TIME}'),
             MaxValueValidator(MAX_COOKING_TIME,
-                              message=f'Слишком долго, '
-                              f'время приготовления должно быть меньше'
+                              message='Слишком долго, '
+                              'время приготовления должно быть меньше'
                               f' - {MAX_COOKING_TIME}')
         ],
 
@@ -100,14 +104,33 @@ class Recipe(models.Model):
         verbose_name='Дата создания',
         auto_now_add=True
     )
+    short_id = models.CharField(
+        max_length=MAX_LENGTH_SHORT_LINK,
+        unique=True,
+        blank=True,
+        help_text='Короткое значение ссылки рецепта'
+    )
 
     class Meta:
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
-        ordering = ['-pub_date']
+        ordering = ('-pub_date',)
 
     def __str__(self):
         return f'Рецепт: {self.name} (Автор: {self.author})'
+
+    def generate_short_id(self):
+        """Создает случайную строку для short_id"""
+        characters = string.ascii_letters + string.digits
+        return ''.join(random.choices(characters, k=MAX_LENGTH_SHORT_LINK))
+
+    def save(self, *args, **kwargs):
+        """Генерируем short_id только при создании нового объекта"""
+        if not self.short_id:
+            self.short_id = self.generate_short_id()
+            while Recipe.objects.filter(short_id=self.short_id).exists():
+                self.short_id = self.generate_short_id()
+        super().save(*args, **kwargs)
 
 
 class RecipeIngredient(models.Model):
@@ -137,7 +160,7 @@ class RecipeIngredient(models.Model):
     class Meta:
         verbose_name = 'Ингредиент в рецептах с количеством'
         verbose_name_plural = 'Ингредиенты в рецептах с количеством'
-        ordering = ['ingredient']
+        ordering = ('ingredient',)
         constraints = [
             models.UniqueConstraint(
                 fields=['ingredient', 'recipe'],
@@ -164,13 +187,13 @@ class FavoriteRecipe(models.Model):
         Recipe,
         on_delete=models.CASCADE,
         related_name='favorite_recipes',
-        verbose_name='Избранный рецепт'
+        verbose_name='Избранный рецепт',
     )
 
     class Meta:
         verbose_name = 'Избранный рецепт'
         verbose_name_plural = 'Избранные рецепты'
-        ordering = ['user']
+        ordering = ('user',)
         constraints = [
             models.UniqueConstraint(
                 fields=['user', 'recipe'],
@@ -200,7 +223,7 @@ class ShoppingList(models.Model):
     class Meta:
         verbose_name = 'Список покупок'
         verbose_name_plural = 'Список покупок'
-        ordering = ['user']
+        ordering = ('user',)
         constraints = [
             models.UniqueConstraint(
                 fields=['user', 'recipe'],

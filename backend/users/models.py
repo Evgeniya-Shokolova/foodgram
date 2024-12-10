@@ -1,8 +1,9 @@
-from api.constants import (MAX_LENGTH_FIRST_NAME, MAX_LENGTH_LAST_NAME,
-                           MAX_LENGTH_USERNAME)
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.db import models
+
+from api.constants import (MAX_LENGTH_FIRST_NAME, MAX_LENGTH_LAST_NAME,
+                           MAX_LENGTH_USERNAME)
 
 
 def user_avatar_path(instance, filename):

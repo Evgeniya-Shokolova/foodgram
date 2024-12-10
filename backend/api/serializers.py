@@ -1,7 +1,9 @@
 from drf_extra_fields.fields import Base64ImageField
+
+from rest_framework import serializers
+
 from recipes.models import (FavoriteRecipe, Ingredient, Recipe,
                             RecipeIngredient, ShoppingList, Tag)
-from rest_framework import serializers
 from users.models import CustomUser, Follow
 
 
@@ -22,16 +24,6 @@ class AvatarSerializer(serializers.ModelSerializer):
                 {'avatar': 'Поле "avatar" обязательно для заполнения.'}
             )
         return attrs
-
-
-class ImageSerializer(serializers.ModelSerializer):
-    """Сериализатор картинки рецепта."""
-
-    image = Base64ImageField()
-
-    class Meta:
-        model = Recipe
-        fields = ('id', 'name', 'image', 'tags', 'cooking_time')
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -57,13 +49,11 @@ class UserSerializer(serializers.ModelSerializer):
         Определяет, подписан ли текущий пользователь на данного пользователя.
         """
         request = self.context.get('request')
-        if request is not None:
-            current_user = request.user
-            return (
-                current_user.is_authenticated
-                and user.following.filter(user=current_user).exists()
-            )
-        return False
+        return bool(
+            request and request.user.is_authenticated
+            and Follow.objects.filter(user=request.user,
+                                      author=user).exists()
+        )
 
 
 class FollowerCreateSerializer(serializers.ModelSerializer):
@@ -87,6 +77,14 @@ class FollowerCreateSerializer(serializers.ModelSerializer):
 
         return data
 
+    def to_representation(self, instance):
+        """
+        Возвращаем информацию о пользователе,
+        на которого была создана подписка.
+        """
+        return FollowerRetrieveSerializer(instance.author,
+                                          context=self.context).data
+
 
 class FollowerRetrieveSerializer(UserSerializer):
     """Сериализатор для отображения подписанного пользователя."""
@@ -106,20 +104,17 @@ class FollowerRetrieveSerializer(UserSerializer):
 
     def get_recipes(self, obj):
         """Получение списка рецептов автора с учетом лимита."""
+        queryset = Recipe.objects.filter(author=obj)
         request = self.context.get('request')
         recipes_limit = request.query_params.get('recipes_limit')
+
         try:
             if recipes_limit is not None:
                 recipes_limit = int(recipes_limit)
                 if recipes_limit > 0:
-                    queryset = Recipe.objects.filter(
-                        author=obj)[:recipes_limit]
-                else:
-                    queryset = Recipe.objects.filter(author=obj)
-            else:
-                queryset = Recipe.objects.filter(author=obj)
+                    queryset = queryset[:recipes_limit]
         except (ValueError, TypeError):
-            queryset = Recipe.objects.filter(author=obj)
+            pass
 
         return RecipeListSerializer(queryset, many=True,
                                     context=self.context).data
@@ -153,21 +148,10 @@ class IngredientCreateSerializer(serializers.ModelSerializer):
 
 class RecipeListSerializer(serializers.ModelSerializer):
     """Сериализатор для отображения списка рецептов."""
-    image = serializers.SerializerMethodField()
 
     class Meta:
         model = Recipe
         fields = ('id', 'name', 'image', 'cooking_time')
-
-    def get_image(self, obj):
-        """
-        Возвращает полный URL для поля image.
-        Если изображения нет, возвращает пустую строку.
-        """
-        request = self.context.get('request')
-        if obj.image:
-            return request.build_absolute_uri(obj.image.url)
-        return ""
 
 
 class RecipeAmountIngredientSerializer(serializers.ModelSerializer):
@@ -214,22 +198,20 @@ class DetailedRecipeSerializer(serializers.ModelSerializer):
     def get_is_favorited(self, obj):
         """Проверить, является ли рецепт избранным для пользователя."""
         request = self.context.get('request')
-        if not request or not hasattr(request, 'user'):
-            return False
-        user = request.user
-        if user.is_anonymous:
-            return False
-        return FavoriteRecipe.objects.filter(user=user, recipe=obj).exists()
+        return bool(
+            request and request.user.is_authenticated
+            and FavoriteRecipe.objects.filter(user=request.user,
+                                              recipe=obj).exists()
+        )
 
     def get_is_in_shopping_cart(self, obj):
         """Проверить, есть ли рецепт в списке покупок пользователя."""
         request = self.context.get('request')
-        if not request or not hasattr(request, 'user'):
-            return False
-        user = request.user
-        if user.is_anonymous:
-            return False
-        return ShoppingList.objects.filter(user=user, recipe=obj).exists()
+        return bool(
+            request and request.user.is_authenticated
+            and ShoppingList.objects.filter(user=request.user,
+                                            recipe=obj).exists()
+        )
 
 
 class RecipeSerializer(serializers.ModelSerializer):
@@ -253,26 +235,28 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         """Проверка данных перед созданием и обновлением рецепта."""
-        if not self.instance:
-            if 'tags' not in data or not data['tags']:
-                raise serializers.ValidationError(
-                    {'tags': 'Поле tags обязательно для создания рецепта.'}
-                )
-            if 'ingredients' not in data or not data['ingredients']:
-                raise serializers.ValidationError(
-                    {'ingredients':
-                     'Поле ingredients обязательно для создания рецепта.'}
-                )
-        else:
-            if 'tags' not in data:
-                raise serializers.ValidationError(
-                    {'tags': 'Поле tags обязательно для обновления рецепта.'}
-                )
-            if 'ingredients' not in data:
-                raise serializers.ValidationError(
-                    {'ingredients':
-                     'Поле ingredients обязательно для обновления рецепта.'}
-                )
+        tags = data.get('tags')
+        if not tags:
+            raise serializers.ValidationError(
+                {'tags': 'Рецепт должен содержать хотя бы один тег.'}
+            )
+        if len(tags) != len(set(tags)):
+            raise serializers.ValidationError(
+                {'tags': 'Теги не должны повторяться.'}
+            )
+
+        ingredients = data.get('ingredients')
+        if not ingredients:
+            raise serializers.ValidationError(
+                {'ingredients':
+                 'Рецепт должен содержать хотя бы один ингредиент.'}
+            )
+        ingredient_ids = [ingredient['id'] for ingredient in ingredients]
+        if len(ingredient_ids) != len(set(ingredient_ids)):
+            raise serializers.ValidationError(
+               {'ingredients': 'Ингредиенты не должны повторяться.'}
+            )
+
         if 'image' not in data or data['image'] is None:
             raise serializers.ValidationError(
                 'Изображение является обязательным полем.'
@@ -281,31 +265,6 @@ class RecipeSerializer(serializers.ModelSerializer):
             data['image'] = self.instance.image
 
         return data
-
-    def validate_ingredients(self, value):
-        """Проверка списка ингредиентов."""
-        if not value:
-            raise serializers.ValidationError(
-                'Рецепт должен содержать хотя бы один ингредиент.'
-            )
-        ingredient_ids = [ingredient['id'] for ingredient in value]
-        if len(ingredient_ids) != len(set(ingredient_ids)):
-            raise serializers.ValidationError(
-                'Ингредиенты не должны повторяться.'
-            )
-        return value
-
-    def validate_tags(self, value):
-        """Проверка списка тегов."""
-        if not value:
-            raise serializers.ValidationError(
-                'Рецепт должен содержать хотя бы один тег.'
-            )
-        if len(value) != len(set(value)):
-            raise serializers.ValidationError(
-                'Теги не должны повторяться.'
-            )
-        return value
 
     def create(self, validated_data):
         """Создание рецепта с ингредиентами и тегами."""
@@ -317,8 +276,9 @@ class RecipeSerializer(serializers.ModelSerializer):
         self._create_recipe_ingredients(recipe, ingredients)
         return recipe
 
-    def _create_recipe_ingredients(self, recipe, ingredients):
-        """Создание ингредиентов для рецепта"""
+    @staticmethod
+    def _create_recipe_ingredients(recipe, ingredients):
+        """Создание ингредиентов для рецепта."""
         recipe_ingredients = [
             RecipeIngredient(
                 recipe=recipe,
@@ -369,13 +329,7 @@ class ShoppingCartSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         """Возвращает информацию о рецепте."""
-        return {
-            'id': instance.recipe.id,
-            'name': instance.recipe.name,
-            'cooking_time': instance.recipe.cooking_time,
-            'image': instance.recipe.image.url if
-            instance.recipe.image else None,
-        }
+        return RecipeListSerializer(instance.recipe, context=self.context).data
 
 
 class FavoriteRecipeSerializer(serializers.ModelSerializer):
@@ -401,11 +355,5 @@ class FavoriteRecipeSerializer(serializers.ModelSerializer):
         return data
 
     def to_representation(self, instance):
-        """Возвращение развернутого представления рецепта."""
-        return {
-            'id': instance.recipe.id,
-            'name': instance.recipe.name,
-            'cooking_time': instance.recipe.cooking_time,
-            'image': instance.recipe.image.url if
-            instance.recipe.image else None,
-        }
+        """Возвращает информацию о рецепте."""
+        return RecipeListSerializer(instance.recipe, context=self.context).data
