@@ -3,13 +3,19 @@ import string
 
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from users.models import CustomUser
 
-from api.constants import (MAX_AMOUNT_INGR, MAX_COOKING_TIME,
-                           MAX_LENGTH_INGRIDIENT_NAME,
-                           MAX_LENGTH_MEASUREMENT_UNIT, MAX_LENGTH_RECIPE_NAME,
-                           MAX_LENGTH_TAG_NAME, MIN_AMOUNT_INGR,
-                           MIN_COOKING_TIME, MAX_LENGTH_SHORT_LINK)
+from api.constants import (
+    MAX_AMOUNT_INGR,
+    MAX_COOKING_TIME,
+    MAX_LENGTH_INGRIDIENT_NAME,
+    MAX_LENGTH_MEASUREMENT_UNIT,
+    MAX_LENGTH_RECIPE_NAME,
+    MAX_LENGTH_SHORT_LINK,
+    MAX_LENGTH_TAG_NAME,
+    MIN_AMOUNT_INGR,
+    MIN_COOKING_TIME,
+)
+from users.models import CustomUser
 
 
 class Tag(models.Model):

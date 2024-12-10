@@ -13,13 +13,25 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 from api.filters import IngredientFilterSet, RecipeFilterSet
 from api.pagination import PageLimitPaginator
 from api.permissions import IsAuthorOrReadOnly
-from api.serializers import (AvatarSerializer, FavoriteRecipeSerializer,
-                             FollowerCreateSerializer,
-                             FollowerRetrieveSerializer, IngredientSerializer,
-                             RecipeSerializer, ShoppingCartSerializer,
-                             TagSerializer, UserSerializer)
-from recipes.models import (FavoriteRecipe, Ingredient, Recipe,
-                            RecipeIngredient, ShoppingList, Tag)
+from api.serializers import (
+    AvatarSerializer,
+    FavoriteRecipeSerializer,
+    FollowerCreateSerializer,
+    FollowerRetrieveSerializer,
+    IngredientSerializer,
+    RecipeSerializer,
+    ShoppingCartSerializer,
+    TagSerializer,
+    UserSerializer,
+)
+from recipes.models import (
+    FavoriteRecipe,
+    Ingredient,
+    Recipe,
+    RecipeIngredient,
+    ShoppingList,
+    Tag,
+)
 from users.models import CustomUser, Follow
 
 

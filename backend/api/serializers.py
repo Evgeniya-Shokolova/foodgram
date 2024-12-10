@@ -1,9 +1,15 @@
-from drf_extra_fields.fields import Base64ImageField
-
 from rest_framework import serializers
 
-from recipes.models import (FavoriteRecipe, Ingredient, Recipe,
-                            RecipeIngredient, ShoppingList, Tag)
+from drf_extra_fields.fields import Base64ImageField
+
+from recipes.models import (
+    FavoriteRecipe,
+    Ingredient,
+    Recipe,
+    RecipeIngredient,
+    ShoppingList,
+    Tag,
+)
 from users.models import CustomUser, Follow
 
 
@@ -253,8 +259,8 @@ class RecipeSerializer(serializers.ModelSerializer):
             )
         ingredient_ids = [ingredient['id'] for ingredient in ingredients]
         if len(ingredient_ids) != len(set(ingredient_ids)):
-            raise serializers.ValidationError(
-               {'ingredients': 'Ингредиенты не должны повторяться.'}
+            raise serializers.ValidationError({
+                'ingredients': 'Ингредиенты не должны повторяться.'}
             )
 
         if 'image' not in data or data['image'] is None:
