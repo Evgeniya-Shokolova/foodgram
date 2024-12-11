@@ -1,5 +1,4 @@
 from rest_framework import serializers
-
 from drf_extra_fields.fields import Base64ImageField
 
 from recipes.models import (
@@ -226,7 +225,7 @@ class RecipeSerializer(serializers.ModelSerializer):
     tags = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Tag.objects.all()
     )
-    image = Base64ImageField(required=False, allow_null=True)
+    image = Base64ImageField()
 
     class Meta:
         model = Recipe
@@ -262,15 +261,15 @@ class RecipeSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 'ingredients': 'Ингредиенты не должны повторяться.'}
             )
-
-        if 'image' not in data or data['image'] is None:
-            raise serializers.ValidationError(
-                'Изображение является обязательным полем.'
-            )
-        if 'image' not in data:
-            data['image'] = self.instance.image
-
         return data
+
+    def validate_image(self, value):
+        """Проверка наличия изображения."""
+        if value == "" or value is None:
+            raise serializers.ValidationError(
+                'Изображение не может быть пустым.'
+            )
+        return value
 
     def create(self, validated_data):
         """Создание рецепта с ингредиентами и тегами."""

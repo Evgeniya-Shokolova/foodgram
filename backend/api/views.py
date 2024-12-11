@@ -3,7 +3,6 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet as DjoserUserViewSet
-
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -90,11 +89,7 @@ class UserViewSet(DjoserUserViewSet):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        response_data = FollowerRetrieveSerializer(
-            user_to_follow, context={'request': request}
-        ).data
-
-        return Response(response_data, status=status.HTTP_201_CREATED)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @subscribe.mapping.delete
     def remove_subscription(self, request, id=None):
@@ -108,10 +103,7 @@ class UserViewSet(DjoserUserViewSet):
                 {'detail': 'Вы не подписаны на данного пользователя.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        return Response(
-            {'detail': 'Вы успешно отписались.'},
-            status=status.HTTP_204_NO_CONTENT
-        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class TagViewSet(ReadOnlyModelViewSet):
@@ -149,16 +141,16 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def get_link(self, request, pk=None):
         """Возвращает короткую ссылку на рецепт."""
         recipe = get_object_or_404(Recipe, id=pk)
-        full_url = request.build_absolute_uri(f'/recipes/{recipe.id}/')
-        return Response({'short-link': full_url}, status=status.HTTP_200_OK)
+        short_link = request.build_absolute_uri(f'/recipes/{recipe.short_id}/')
+        return Response({'short-link': short_link}, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['GET'],
             url_path='get-link')
-    def redirect_to_recipe(self, request, pk=None):
+    def redirect_to_recipe(self, request, short_id):
         """Перенаправляет пользователя по короткой ссылке рецепта."""
-        recipe = get_object_or_404(Recipe, id=pk)
-        full_url = request.build_absolute_uri(f'/recipes/{recipe.id}/')
-        return HttpResponseRedirect(full_url)
+        recipe = get_object_or_404(Recipe, short_id)
+        short_link = request.build_absolute_uri(f'/recipes/{recipe.short_id}/')
+        return HttpResponseRedirect(short_link)
 
     @action(methods=['POST'], detail=True,
             permission_classes=[IsAuthenticated])
@@ -180,15 +172,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
         """Удаление рецепта из корзины."""
         recipe = get_object_or_404(Recipe, id=pk)
         shopping_item = ShoppingList.objects.filter(user=request.user,
-                                                    recipe=recipe)
-        if not shopping_item.exists():
+                                                    recipe=recipe).delete()
+        if not shopping_item:
             return Response(
                 {'detail': 'Рецепт отсутствует в корзине пользователя.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-        shopping_item.delete()
-
         return Response(
             {'detail': 'Рецепт был успешно удалён из корзины.'},
             status=status.HTTP_204_NO_CONTENT
