@@ -176,4 +176,4 @@ git push
 ### Проект доступен по домену: 
 [fooding.hopto.org](https://fooding.hopto.org)
 ### Автор:
-[Евгения Шоколова](https://github.com/Evgeniya-Shokolova/foodgram)
+[Евгения Шоколова](https://github.com/Evgeniya-Shokolova)
