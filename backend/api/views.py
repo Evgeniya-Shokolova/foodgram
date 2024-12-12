@@ -173,7 +173,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         recipe = get_object_or_404(Recipe, id=pk)
         deleted_count, _ = ShoppingList.objects.filter(user=request.user,
                                                        recipe=recipe).delete()
-        if deleted_count == 0:
+        if not deleted_count:
             return Response(
                 {'detail': 'Рецепт отсутствует в корзине пользователя.'},
                 status=status.HTTP_400_BAD_REQUEST
