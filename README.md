@@ -173,7 +173,7 @@ git push
 - ```api/ingredients/``` - Получение списка ингредиентов (GET).
 
 
-### Проект доступен по адресу 
+### Проект доступен по домену: 
 [fooding.hopto.org](https://fooding.hopto.org)
-### Автор
+### Автор:
 [Евгения Шоколова](https://github.com/Evgeniya-Shokolova/foodgram)
