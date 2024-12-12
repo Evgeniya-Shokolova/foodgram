@@ -295,6 +295,8 @@ class RecipeSerializer(serializers.ModelSerializer):
         RecipeIngredient.objects.bulk_create(recipe_ingredients)
 
     def update(self, instance, validated_data):
+        # при редактировании ингредиенты живут своей жизнью. Новый сохраняется,
+        # а те, которые не трогали, меняются на следующие по списку.
         """Обновление рецепта с ингредиентами и тегами."""
         ingredients = validated_data.pop('ingredients', None)
         if ingredients:

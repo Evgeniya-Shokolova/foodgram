@@ -171,9 +171,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def remove_shopping_cart(self, request, pk=None):
         """Удаление рецепта из корзины."""
         recipe = get_object_or_404(Recipe, id=pk)
-        shopping_item = ShoppingList.objects.filter(user=request.user,
-                                                    recipe=recipe).delete()
-        if not shopping_item:
+        deleted_count, _ = ShoppingList.objects.filter(user=request.user,
+                                                       recipe=recipe).delete()
+        if deleted_count == 0:
             return Response(
                 {'detail': 'Рецепт отсутствует в корзине пользователя.'},
                 status=status.HTTP_400_BAD_REQUEST
