@@ -138,6 +138,10 @@ class Recipe(models.Model):
                 self.short_id = self.generate_short_id()
         super().save(*args, **kwargs)
 
+    def get_short_url(self):
+        """Возвращает URL короткой ссылки."""
+        return f'/s/{self.short_id}/'
+
 
 class RecipeIngredient(models.Model):
     """Модель ингредиентов для рецепта"""

@@ -5,6 +5,7 @@ from django.urls import include, path
 from djoser.views import TokenCreateView, TokenDestroyView
 from rest_framework.routers import DefaultRouter
 
+from api.utils import redirect_to_recipe_view
 from api.views import IngredientViewSet, RecipeViewSet, TagViewSet, UserViewSet
 
 router = DefaultRouter()
@@ -25,6 +26,8 @@ urlpatterns = [
          TokenDestroyView.as_view(),
          name='token_logout'),
     path('api/', include(router.urls)),
+    path('s/<slug:short_id>/', redirect_to_recipe_view,
+         name='redirect_to_recipe'),
 ]
 
 if settings.DEBUG:

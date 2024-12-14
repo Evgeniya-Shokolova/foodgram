@@ -163,7 +163,8 @@ class RecipeAmountIngredientSerializer(serializers.ModelSerializer):
     """
     Сериализатор для отображения информации об ингредиентах.
     """
-    id = serializers.PrimaryKeyRelatedField(queryset=Ingredient.objects.all())
+    id = serializers.PrimaryKeyRelatedField(queryset=Ingredient.objects.all(),
+                                            source='ingredient.pk')
     name = serializers.CharField(source='ingredient.name', read_only=True)
     measurement_unit = serializers.CharField(
         source='ingredient.measurement_unit', read_only=True
